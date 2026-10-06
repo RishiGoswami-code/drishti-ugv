@@ -1,0 +1,1167 @@
+<title>DRISHTI-UGV Terrain Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground:#eef2f6; --panel:#ffffff; --panel-2:#f4f7fa; --line:#d3dce4;
+    --line-2:#e6ecf1; --ink:#13202b; --ink-2:#3c4d5c; --muted:#61758a;
+    --accent:#0d8496; --accent-soft:#0d849618;
+    --pass:#15803d; --slow:#a86308; --stop:#c62828;
+    --map-bg:#c9d4dd; --unseen:#9cadba;
+    --f-display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+    --f-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0a0f15; --panel:#111a22; --panel-2:#17212b; --line:#243140;
+      --line-2:#1a2531; --ink:#dbe5ef; --ink-2:#b0c0ce; --muted:#7f93a6;
+      --accent:#35b8c9; --accent-soft:#35b8c920;
+      --pass:#4ade80; --slow:#fbbf24; --stop:#f87171;
+      --map-bg:#070c11; --unseen:#1e2833;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0a0f15; --panel:#111a22; --panel-2:#17212b; --line:#243140;
+    --line-2:#1a2531; --ink:#dbe5ef; --ink-2:#b0c0ce; --muted:#7f93a6;
+    --accent:#35b8c9; --accent-soft:#35b8c920;
+    --pass:#4ade80; --slow:#fbbf24; --stop:#f87171;
+    --map-bg:#070c11; --unseen:#1e2833;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    background:var(--ground); color:var(--ink); font-family:var(--f-body);
+    margin:0; padding:0 0 1.5rem; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { margin:0 auto; padding:0 .8rem; }
+
+  /* ------------------------------------------------------------ header */
+  .bar {
+    display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+    padding:.85rem 0 .7rem; border-bottom:1px solid var(--line); margin-bottom:.85rem;
+  }
+  .brand { font-family:var(--f-display); font-weight:700; font-size:1.32rem; letter-spacing:.005em; }
+  .brand span { color:var(--accent); }
+  .ps { font-family:var(--f-mono); font-size:.7rem; color:var(--muted); }
+  .parity {
+    margin-left:auto; font-family:var(--f-mono); font-size:.7rem;
+    border:1px solid var(--line); border-radius:99px; padding:.24rem .7rem;
+    color:var(--muted); background:var(--panel); white-space:nowrap;
+  }
+  .parity.ok { color:var(--pass); border-color:currentColor; }
+  .parity.bad { color:var(--stop); border-color:currentColor; }
+
+  /* ------------------------------------------------------------ layout */
+  .lab { display:grid; grid-template-columns:142px minmax(0,1fr) 244px; gap:.7rem; align-items:start; }
+  @media (max-width:1220px){ .lab{grid-template-columns:142px minmax(0,1fr);} .side{grid-column:1/-1;} }
+  @media (max-width:780px){ .lab{grid-template-columns:1fr;} .tools{display:grid;grid-template-columns:repeat(3,1fr);} }
+
+  /* On a desktop the maps ARE the page: pin the shell to the viewport and give
+     the canvases every pixel the two panels do not need. Below that width the
+     grid stacks and the page scrolls normally, so nothing is trapped offscreen. */
+  @media (min-width:1221px){
+    html, body { height:100%; }
+    body { overflow:hidden; padding-bottom:0; }
+    .lab { height:calc(100vh - 3.4rem); align-items:stretch; }
+    .palette, .side { overflow-y:auto; min-height:0; }
+    .stage { display:flex; flex-direction:column; min-height:0; }
+    .maps { flex:1; min-height:0; }
+    figure { display:flex; flex-direction:column; min-height:0; }
+    canvas { flex:1; min-height:0; height:auto; object-fit:contain; }
+  }
+
+  .group { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:.6rem; }
+  .cap {
+    font-family:var(--f-display); font-size:.63rem; letter-spacing:.15em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .45rem;
+  }
+
+  /* ------------------------------------------------------------- tools */
+  .tools { display:flex; flex-direction:column; gap:.25rem; }
+  .tool {
+    display:flex; align-items:center; gap:.45rem; width:100%;
+    background:transparent; border:1px solid transparent; border-radius:3px;
+    padding:.3rem .35rem; cursor:pointer; font:inherit; font-size:.82rem;
+    color:var(--ink-2); text-align:left;
+  }
+  .tool:hover { background:var(--panel-2); color:var(--ink); }
+  .tool[aria-pressed="true"] { background:var(--accent-soft); border-color:var(--accent); color:var(--ink); }
+  .tool:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  /* The palette shows the same glyph the map draws, so nobody has to hold a
+     colour in their head to know what they are looking at. */
+  .chip {
+    width:18px; height:18px; flex:0 0 auto; border-radius:3px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; line-height:1; background:var(--panel-2);
+    border:1px solid var(--line); overflow:hidden;
+  }
+  .chip.plain { font-size:0; border-color:rgba(128,128,128,.4); }
+  .tool kbd {
+    margin-left:auto; font-family:var(--f-mono); font-size:.62rem; color:var(--muted);
+    border:1px solid var(--line); border-radius:2px; padding:0 .22rem;
+  }
+
+  .slider { display:flex; align-items:center; gap:.4rem; font-family:var(--f-mono); font-size:.7rem; color:var(--muted); }
+  input[type=range]{ flex:1; min-width:0; accent-color:var(--accent); }
+
+  /* ------------------------------------------------------------- stage */
+  .maps { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+  .maps.solo { grid-template-columns:1fr; }
+  figure[hidden] { display:none; }
+  @media (max-width:900px){ .maps{grid-template-columns:1fr;} }
+  figure { margin:0; }
+  figcaption {
+    font-family:var(--f-display); font-size:.63rem; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--muted); margin-bottom:.3rem;
+    display:flex; justify-content:space-between; gap:.4rem;
+  }
+  figcaption b { color:var(--accent); font-weight:600; }
+  figcaption #hover, figcaption #cover {
+    text-transform:none; font-family:var(--f-mono); letter-spacing:0; font-size:.68rem;
+  }
+  canvas {
+    display:block; width:100%; height:auto; background:var(--map-bg);
+    border:1px solid var(--line); border-radius:3px;
+  }
+  #edit { cursor:crosshair; touch-action:none; }
+
+  .run {
+    display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--line); border-radius:4px;
+    padding:.5rem .65rem; margin-top:.7rem;
+  }
+  button.ctl {
+    font-family:var(--f-display); font-size:.74rem; letter-spacing:.09em;
+    text-transform:uppercase; background:var(--accent-soft); color:var(--accent);
+    border:1px solid var(--accent); border-radius:3px; padding:.34rem .8rem; cursor:pointer;
+  }
+  button.ctl:hover { background:var(--accent); color:var(--panel); }
+  button.ctl:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  button.ctl.ghost { background:transparent; border-color:var(--line); color:var(--ink-2); }
+  button.ctl.ghost:hover { border-color:var(--accent); color:var(--accent); background:transparent; }
+  button.ctl.armed { background:var(--stop); border-color:var(--stop); color:#fff; }
+  .seg { display:flex; }
+  .seg .ctl { border-radius:0; margin-left:-1px; padding:.34rem .58rem; }
+  .seg .ctl:first-child { border-radius:3px 0 0 3px; margin-left:0; }
+  .seg .ctl:last-child { border-radius:0 3px 3px 0; }
+  .seg .ctl[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:var(--panel); }
+  select.speed {
+    font-family:var(--f-mono); font-size:.72rem; background:var(--panel-2);
+    color:var(--ink-2); border:1px solid var(--line); border-radius:3px; padding:.26rem .35rem;
+  }
+  .clock { font-family:var(--f-mono); font-size:.8rem; font-variant-numeric:tabular-nums; color:var(--ink-2); margin-left:auto; }
+
+  /* --------------------------------------------------------- telemetry */
+  .side { display:flex; flex-direction:column; gap:.7rem; min-width:0; }
+  .verdict { display:flex; align-items:baseline; gap:.5rem; margin-bottom:.5rem; }
+  .verdict .st { font-family:var(--f-display); font-size:1.5rem; font-weight:700; letter-spacing:.03em; line-height:1; }
+  .verdict .wh { font-size:.76rem; color:var(--muted); }
+  .st.pass{color:var(--pass);} .st.slow{color:var(--slow);} .st.stop{color:var(--stop);}
+  dl.read { display:grid; grid-template-columns:1fr auto; gap:.22rem .5rem; margin:0;
+            font-family:var(--f-mono); font-size:.76rem; font-variant-numeric:tabular-nums; }
+  dl.read dt { color:var(--muted); }
+  dl.read dd { margin:0; text-align:right; }
+  dd.warn{color:var(--slow);} dd.bad{color:var(--stop);}
+  .rule { grid-column:1/-1; border-top:1px solid var(--line-2); margin:.3rem 0 .05rem; }
+
+  .log { font-family:var(--f-mono); font-size:.71rem; height:210px; overflow-y:auto;
+         display:flex; flex-direction:column; gap:.22rem; }
+  .log .e { display:flex; gap:.45rem; align-items:baseline; }
+  .log .ts { color:var(--muted); font-variant-numeric:tabular-nums; flex:0 0 auto; }
+  .log .e.pass .m{color:var(--pass);} .log .e.slow .m{color:var(--slow);}
+  .log .e.stop .m{color:var(--stop);} .log .e.edit .m{color:var(--accent);}
+  .log .e.plan .m{color:var(--ink-2);} .log .e.sys .m{color:var(--muted);}
+
+  .legend { display:flex; flex-wrap:wrap; gap:.35rem .8rem; margin-top:.55rem; font-size:.7rem; color:var(--muted); }
+  .legend span { display:flex; align-items:center; gap:.3rem; }
+  .ramp { width:76px; height:11px; border-radius:2px; border:1px solid rgba(128,128,128,.35);
+          background:linear-gradient(90deg,#1d7f8c,#2f9e6b,#8db83c,#e0b53a,#e07a30,#d1435f); }
+  @media (prefers-reduced-motion: reduce){ *{transition:none!important;} }
+</style>
+
+<div class="wrap">
+  <div class="bar">
+    <div class="brand">DRISHTI<span>-UGV</span> Terrain Lab</div>
+    <div class="ps">vision-first · GPS-denied</div>
+    <div class="parity" id="parity">checking against C++&hellip;</div>
+  </div>
+
+  <div class="lab">
+    <!-- ------------------------------------------------ tool palette -->
+    <div class="palette" style="display:flex;flex-direction:column;gap:.7rem;">
+      <div class="group">
+        <p class="cap">Place</p>
+        <div class="tools" id="tools"></div>
+        <div class="slider" style="margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--line-2);">
+          <span style="flex:0 0 auto;">size</span>
+          <input type="range" id="brush" min="1" max="9" value="3" aria-label="Brush size">
+          <span id="brush-v">3</span>
+        </div>
+      </div>
+      <div class="group">
+        <p class="cap">Inject fault</p>
+        <div class="tools">
+          <button class="tool" type="button" id="f-freeze" aria-pressed="false">
+            <span class="chip">&#10052;</span>Camera freeze</button>
+          <button class="tool" type="button" id="f-cam" aria-pressed="false">
+            <span class="chip">&#128247;</span>Camera dropout</button>
+          <button class="tool" type="button" id="f-depth" aria-pressed="false">
+            <span class="chip">&#128225;</span>Depth dropout</button>
+          <button class="tool" type="button" id="f-slam" aria-pressed="false">
+            <span class="chip">&#129517;</span>SLAM loss</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------------- maps -->
+    <div class="stage" style="min-width:0;">
+      <div class="maps">
+        <figure id="fig-truth">
+          <figcaption><span>Terrain — <b>click and drag to build</b></span><span id="hover">—</span></figcaption>
+          <canvas id="edit" width="800" height="480"></canvas>
+        </figure>
+        <figure id="fig-belief">
+          <figcaption><span>What the vehicle believes</span><span id="cover">0.0 %</span></figcaption>
+          <canvas id="belief" width="800" height="480"></canvas>
+        </figure>
+      </div>
+
+      <div class="run">
+        <button class="ctl" id="play" type="button">Run</button>
+        <button class="ctl ghost" id="step" type="button">Step</button>
+        <button class="ctl ghost" id="reset" type="button">Reset run</button>
+        <button class="ctl ghost" id="clear" type="button">Clear terrain</button>
+        <select class="speed" id="preset" aria-label="Load a preset course">
+          <option value="">Load course…</option>
+          <option value="ditch">Ditch + detour</option>
+          <option value="slalom">Rock slalom</option>
+          <option value="corridor">Wall corridor</option>
+          <option value="ramp">Slope + mud</option>
+          <option value="gauntlet">Gauntlet (all features)</option>
+        </select>
+        <select class="speed" id="speed" aria-label="Speed">
+          <option value="2">0.5×</option><option value="1" selected>1×</option>
+          <option value="0.5">2×</option><option value="0.25">4×</option>
+        </select>
+        <span class="seg" role="group" aria-label="Which map to show">
+          <button class="ctl ghost" type="button" data-view="both"   aria-pressed="true">Both</button>
+          <button class="ctl ghost" type="button" data-view="truth"  aria-pressed="false">Terrain</button>
+          <button class="ctl ghost" type="button" data-view="belief" aria-pressed="false">Belief</button>
+        </span>
+        <span class="clock" id="clock">t = 0.0 s</span>
+      </div>
+
+      <div class="legend">
+        <span><span class="ramp"></span> cheap → costly</span>
+        <span><span class="chip plain" style="background:#d1435f"></span> lethal</span>
+        <span><span class="chip plain" style="background:var(--unseen)"></span> unobserved (0.85)</span>
+        <span><span class="chip plain" style="background:var(--accent)"></span> planned route</span>
+      </div>
+    </div>
+
+    <!-- --------------------------------------------------- telemetry -->
+    <div class="side">
+      <div class="group">
+        <p class="cap">Safety supervisor</p>
+        <div class="verdict"><span class="st pass" id="st">IDLE</span><span class="wh" id="wh">press Run</span></div>
+        <dl class="read">
+          <dt>planner asks</dt><dd id="ci">0.00 m/s</dd>
+          <dt>wheels get</dt><dd id="co">0.00 m/s</dd>
+          <div class="rule"></div>
+          <dt>camera age</dt><dd id="ra">0.00 s</dd>
+          <dt>depth age</dt><dd id="da">0.00 s</dd>
+          <dt>frame unchanged</dt><dd id="sf">0.00 s</dd>
+          <dt>nearest hazard</dt><dd id="no">none</dd>
+          <div class="rule"></div>
+          <dt>lethal cells</dt><dd id="lc">0</dd>
+          <dt>to goal</dt><dd id="dg">0.00 m</dd>
+        </dl>
+      </div>
+      <div class="group">
+        <p class="cap">Trace</p>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="fixture" type="application/json">__FIXTURE__</script>
+<script>
+(function () {
+"use strict";
+
+/* ===================================================================
+   PORTED CORES — mirror ugv_ws/src/drishti_{safety,traversability}
+   The page re-runs the embedded C++ fixture on load and reports any
+   disagreement in its own header, so a drifting port cannot pass
+   itself off as the real thing.
+   =================================================================== */
+var NEVER = -1e18;
+var SP = { t_camera_stale:0.30, t_depth_stale:0.30, d_emergency:0.80,
+           c_critical:0.40, v_max:1.20, v_slow:0.35, cov_max:0.50,
+           watchdog_period:0.02, t_frame_static:2.0 };
+var TW = { slope:1.0, roughness:1.0, height_variance:0.8,
+           obstacle:1.5, semantic:1.2, uncertainty:1.0 };
+var TWSUM = TW.slope+TW.roughness+TW.height_variance+TW.obstacle+TW.semantic+TW.uncertainty;
+var TL = { slope_max:0.35, slope_lethal:0.52, roughness_max:0.08,
+           height_variance_max:0.010, step_max:0.12, step_lethal:0.25,
+           unknown_cost:0.85 };
+
+var REASON = ["none","localisation lost","depth stale","camera stale",
+              "obstacle inside emergency distance","perception confidence below floor",
+              "no valid path","planner command invalid","camera frozen; frames unchanging"];
+
+function fin(v){ return typeof v === "number" && isFinite(v); }
+
+function stampAge(now, stamp, tol){
+  if(!fin(now) || !fin(stamp)) return Infinity;
+  if(stamp <= NEVER/2) return Infinity;
+  var age = now - stamp;
+  if(age < -Math.abs(tol)) return Infinity;
+  return age < 0 ? 0 : age;
+}
+
+function supervise(i){
+  var d = { action:2, reason:0, vLimit:0, lin:0, ang:0, stop:true,
+            rgbAge:0, depthAge:0 };
+  d.rgbAge = stampAge(i.now, i.lastRgb, SP.watchdog_period);
+  d.depthAge = stampAge(i.now, i.lastDepth, SP.watchdog_period);
+
+  if(!i.poseValid || !fin(i.cov) || i.cov > SP.cov_max){ d.reason=1; return d; }
+  if(d.depthAge > SP.t_depth_stale){ d.reason=2; return d; }
+  if(d.rgbAge > SP.t_camera_stale){ d.reason=3; return d; }
+  if(fin(i.staticFor) && i.staticFor >= SP.t_frame_static){ d.reason=8; return d; }
+  if(fin(i.nearest) && i.nearest < SP.d_emergency){ d.reason=4; return d; }
+  if(!i.pathValid){ d.reason=6; return d; }
+  if(!fin(i.lin) || !fin(i.ang)){ d.reason=7; return d; }
+
+  var slow = !fin(i.conf) || i.conf < SP.c_critical;
+  var limit = slow ? SP.v_slow : SP.v_max;
+  var lin = i.lin, ang = i.ang, speed = Math.abs(lin);
+  if(speed > limit){ var k = limit/speed; lin*=k; ang*=k; }
+  d.action = slow ? 1 : 0;
+  d.reason = slow ? 5 : 0;
+  d.vLimit = limit; d.lin = lin; d.ang = ang; d.stop = false;
+  return d;
+}
+
+function norm(v, limit, fallback){
+  if(!fin(v) || !fin(limit) || limit <= 0) return fallback;
+  return Math.min(Math.max(Math.abs(v)/limit, 0), 1);
+}
+
+function terrain(c){
+  if(fin(c.slope) && c.slope >= TL.slope_lethal) return {cost:1, lethal:true, unknown:false};
+  if(fin(c.step) && c.step >= TL.step_lethal) return {cost:1, lethal:true, unknown:false};
+  if(c.semLethal) return {cost:1, lethal:true, unknown:false};
+
+  var usable = fin(c.slope) && fin(c.rough) && fin(c.variance) && fin(c.step);
+  if(!c.observed || !usable) return {cost:TL.unknown_cost, lethal:false, unknown:true};
+
+  var vis = fin(c.vis) ? Math.min(Math.max(c.vis,0),1) : 0;
+  var conf = fin(c.conf) ? Math.min(Math.max(c.conf,0),1) : 0;
+  var weighted =
+    TW.slope           * norm(c.slope, TL.slope_max, 1) +
+    TW.roughness       * norm(c.rough, TL.roughness_max, 1) +
+    TW.height_variance * norm(c.variance, TL.height_variance_max, 1) +
+    TW.obstacle        * norm(c.step, TL.step_max, 1) +
+    TW.semantic        * (fin(c.sem) ? Math.min(Math.max(c.sem,0),1) : 1) +
+    TW.uncertainty     * (1 - Math.min(vis, conf));
+  return { cost: Math.min(Math.max(weighted/TWSUM, 0), 1), lethal:false, unknown:false };
+}
+
+function toCostmap(r){
+  if(r.lethal) return 254;
+  var c = fin(r.cost) ? Math.min(Math.max(r.cost,0),1) : 1;
+  return Math.min(Math.max(Math.floor(c*252 + 0.5), 0), 252);
+}
+
+/* ------------------------------------------------- self parity check */
+function num(v){ return v === "nan" ? NaN : (v === "inf" ? Infinity : (v === "-inf" ? -Infinity : v)); }
+
+function checkParity(){
+  var fx;
+  try { fx = JSON.parse(document.getElementById("fixture").textContent); }
+  catch(e){ return {ok:false, n:0, bad:-1, msg:"fixture unreadable"}; }
+  var bad = 0, n = 0;
+  var eq = function(a,b){
+    if(typeof a === "number" && isNaN(a) && typeof b === "number" && isNaN(b)) return true;
+    return Math.abs(a-b) <= 1e-12;
+  };
+  fx.supervisor.forEach(function(r){
+    n++;
+    var d = supervise({ now:100, lastRgb:num(r[0]), lastDepth:num(r[1]),
+      staticFor:num(r[2]), poseValid:!!r[3], cov:num(r[4]), nearest:num(r[5]),
+      conf:num(r[6]), pathValid:!!r[7], lin:num(r[8]), ang:num(r[9]) });
+    if(d.action !== r[10] || d.reason !== r[11] ||
+       !eq(d.vLimit,num(r[12])) || !eq(d.lin,num(r[13])) || !eq(d.ang,num(r[14]))) bad++;
+  });
+  fx.terrain.forEach(function(r){
+    n++;
+    var t = terrain({ observed:!!r[0], slope:num(r[1]), rough:num(r[2]),
+      variance:num(r[3]), step:num(r[4]), sem:num(r[5]), semLethal:!!r[6],
+      vis:num(r[7]), conf:num(r[8]) });
+    if(!eq(t.cost,num(r[9])) || t.lethal !== !!r[10] ||
+       t.unknown !== !!r[11] || toCostmap(t) !== r[12]) bad++;
+  });
+  return {ok:bad===0, n:n, bad:bad};
+}
+
+/* ===================================================================
+   WORLD
+   =================================================================== */
+var W = 100, H = 60, RES = 0.25;
+var heights = new Float32Array(W*H);
+var classes = new Uint8Array(W*H);
+var C_DIRT=10, C_GRASS=12, C_GRAVEL=20, C_MUD=30, C_WATER=31,
+    C_DITCH=40, C_ROCK=42, C_TREE=43, C_WALL=44;
+
+var SEM_COST = {}; SEM_COST[C_DIRT]=0; SEM_COST[C_GRASS]=0; SEM_COST[C_GRAVEL]=0.35;
+SEM_COST[C_MUD]=0.75; SEM_COST[C_WATER]=1; SEM_COST[C_DITCH]=1;
+SEM_COST[C_ROCK]=1; SEM_COST[C_TREE]=1; SEM_COST[C_WALL]=1;
+var SEM_LETHAL = {}; SEM_LETHAL[C_WATER]=1; SEM_LETHAL[C_DITCH]=1;
+SEM_LETHAL[C_ROCK]=1; SEM_LETHAL[C_TREE]=1; SEM_LETHAL[C_WALL]=1;
+
+var TERRAIN_COLOUR = {};
+TERRAIN_COLOUR[C_DIRT]="#8a7256"; TERRAIN_COLOUR[C_GRASS]="#4a6b40";
+TERRAIN_COLOUR[C_GRAVEL]="#8d8a7e"; TERRAIN_COLOUR[C_MUD]="#5c4630";
+TERRAIN_COLOUR[C_WATER]="#2a5f8b"; TERRAIN_COLOUR[C_DITCH]="#14100c";
+TERRAIN_COLOUR[C_ROCK]="#6b7078"; TERRAIN_COLOUR[C_TREE]="#24422a";
+TERRAIN_COLOUR[C_WALL]="#9a6a55";
+
+function idx(cx,cy){ return cy*W+cx; }
+function inb(cx,cy){ return cx>=0 && cx<W && cy>=0 && cy<H; }
+function hAt(cx,cy){ return inb(cx,cy) ? heights[idx(cx,cy)] : 0; }
+
+function slopeAt(cx,cy){
+  var dx=(hAt(cx+1,cy)-hAt(cx-1,cy))/(2*RES), dy=(hAt(cx,cy+1)-hAt(cx,cy-1))/(2*RES);
+  return Math.atan(Math.hypot(dx,dy));
+}
+function stepAt(cx,cy){
+  var c=hAt(cx,cy), w=0;
+  w=Math.max(w,Math.abs(hAt(cx+1,cy)-c)); w=Math.max(w,Math.abs(hAt(cx-1,cy)-c));
+  w=Math.max(w,Math.abs(hAt(cx,cy+1)-c)); w=Math.max(w,Math.abs(hAt(cx,cy-1)-c));
+  return w;
+}
+function varianceAt(cx,cy){
+  var s=0,q=0,n=0;
+  for(var dy=-1;dy<=1;dy++) for(var dx=-1;dx<=1;dx++){
+    if(!inb(cx+dx,cy+dy)) continue;
+    var v=hAt(cx+dx,cy+dy); s+=v; q+=v*v; n++;
+  }
+  if(n<2) return 0;
+  var m=s/n; return Math.max(0, q/n - m*m);
+}
+
+/* ===================================================================
+   TOOLS
+   =================================================================== */
+var TOOLS = [
+  {id:"stone",  name:"Stone",      key:"1", colour:"#6b7078", icon:"\uD83E\uDEA8",  hint:"lethal step"},
+  {id:"boulder",name:"Boulder",    key:"2", colour:"#4e535a", icon:"\uD83D\uDDFF",  hint:"tall, occludes"},
+  {id:"ditch",  name:"Ditch",      key:"3", colour:"#14100c", icon:"\uD83D\uDD73",  hint:"negative obstacle"},
+  {id:"slope",  name:"Slope up",   key:"4", colour:"#e0b53a", icon:"\u25B2",   hint:"costly, passable"},
+  {id:"steep",  name:"Steep bank", key:"5", colour:"#e8635f", icon:"\u25B2",   hint:"over 30° = lethal"},
+  {id:"gravel", name:"Rough",      key:"6", colour:"#8d8a7e", icon:"\u2234",  hint:"roughness"},
+  {id:"mud",    name:"Mud",        key:"7", colour:"#5c4630", icon:"\uD83D\uDFE4", hint:"high semantic cost"},
+  {id:"water",  name:"Water",      key:"8", colour:"#2a5f8b", icon:"\uD83D\uDCA7",  hint:"flat but lethal"},
+  {id:"tree",   name:"Tree",       key:"9", colour:"#24422a", icon:"\uD83C\uDF32",  hint:"lethal trunk"},
+  {id:"wall",   name:"Wall",       key:"0", colour:"#9a6a55", icon:"\uD83E\uDDF1", hint:"drag to make turns"},
+  {id:"flat",   name:"Flatten",    key:"e", colour:"#8a7256", icon:"\u232B", hint:"erase"},
+  {id:"start",  name:"Move start", key:"s", colour:"#4ade80", icon:"\u25B6",  hint:""},
+  {id:"goal",   name:"Move goal",  key:"g", colour:"#35b8c9", icon:"\uD83C\uDFAF",   hint:""}
+];
+var tool = "stone", brush = 3;
+
+function stamp(cx, cy){
+  var r = brush;
+  if(tool === "start"){ sim.start = [(cx+0.5)*RES,(cy+0.5)*RES]; return "start moved"; }
+  if(tool === "goal"){ sim.goal = [(cx+0.5)*RES,(cy+0.5)*RES]; return "goal moved"; }
+
+  for(var dy=-r;dy<=r;dy++) for(var dx=-r;dx<=r;dx++){
+    var x=cx+dx, y=cy+dy;
+    if(!inb(x,y)) continue;
+    var d = Math.hypot(dx,dy);
+    if(d > r) continue;
+    var i = idx(x,y);
+    switch(tool){
+      case "stone":   heights[i]=0.45; classes[i]=C_ROCK; break;
+      case "boulder": heights[i]=1.10; classes[i]=C_ROCK; break;
+      case "ditch":   heights[i]=-0.60; classes[i]=C_DITCH; break;
+      // A ramp, not a step: height rises across the brush so the SLOPE term
+      // sees a gradient rather than a cliff. That is the difference between
+      // "costly but passable" and "lethal".
+      case "slope":   heights[i]=Math.max(heights[i],(r-d)*RES*0.55); classes[i]=C_DIRT; break;
+      case "steep":   heights[i]=Math.max(heights[i],(r-d)*RES*1.6); classes[i]=C_DIRT; break;
+      case "gravel":  heights[i]=((x*7+y*13)%5)*0.012; classes[i]=C_GRAVEL; break;
+      case "mud":     heights[i]=0; classes[i]=C_MUD; break;
+      case "water":   heights[i]=0; classes[i]=C_WATER; break;
+      case "tree":    heights[i]=1.8; classes[i]=C_TREE; break;
+      case "wall":    heights[i]=1.0; classes[i]=C_WALL; break;
+      case "flat":    heights[i]=0; classes[i]=C_DIRT; break;
+    }
+  }
+  markTerrain();
+  return null;
+}
+
+/* ===================================================================
+   SIMULATION
+   =================================================================== */
+var sim = {
+  t:0, pose:[1.2,7.5,0], start:[1.2,7.5], goal:[23.0,7.5],
+  observed:new Uint8Array(W*H), cost:new Float32Array(W*H),
+  lethal:new Uint8Array(W*H), planCost:new Float32Array(W*H),
+  planBlocked:new Uint8Array(W*H),
+  lastRgb:0, lastDepth:0, staticFor:0, path:[], trail:[],
+  running:false, lastReplan:-99, dirty:true, outcome:null,
+  faults:{freeze:false, cam:false, depth:false, slam:false},
+  decision:null, nearest:NaN, stopSince:null
+};
+sim.cost.fill(TL.unknown_cost);
+
+var SENSOR_RANGE = 5.0, FOV = 80*Math.PI/180, DT = 0.1, GOAL_TOL = 0.5;
+var INSCRIBED = 0.40, INFLATION = 1.10;
+
+function resetRun(keepTerrain){
+  sim.t = 0;
+  sim.pose = [sim.start[0], sim.start[1], 0];
+  sim.observed.fill(0); sim.cost.fill(TL.unknown_cost); sim.lethal.fill(0);
+  sim.lastRgb = 0; sim.lastDepth = 0; sim.staticFor = 0;
+  sim.path = []; sim.trail = []; sim.lastReplan = -99; sim.dirty = true;
+  sim.outcome = null; sim.decision = null; sim.nearest = NaN; sim.stopSince = null;
+  if(!keepTerrain){ heights.fill(0); classes.fill(C_DIRT); markTerrain(); }
+  log("sys", "run reset");
+}
+
+function observe(cx, cy){
+  var i = idx(cx,cy);
+  var cls = classes[i];
+  var r = terrain({
+    observed:true, slope:slopeAt(cx,cy), rough:Math.sqrt(varianceAt(cx,cy)),
+    variance:varianceAt(cx,cy), step:stepAt(cx,cy),
+    sem:SEM_COST[cls]||0, semLethal:!!SEM_LETHAL[cls], vis:1, conf:0.9
+  });
+  var wasLethal = sim.lethal[i], wasSeen = sim.observed[i];
+  sim.observed[i] = 1;
+  sim.cost[i] = r.cost;
+  sim.lethal[i] = r.lethal ? 1 : 0;
+  if(!wasSeen || wasLethal !== sim.lethal[i]) sim.dirty = true;
+}
+
+function sense(){
+  if(sim.faults.cam){ if(!sim.faults.depth) sim.lastDepth = sim.t; return; }
+  if(sim.faults.freeze){
+    sim.lastRgb = sim.t; sim.staticFor += DT;
+    if(!sim.faults.depth) sim.lastDepth = sim.t;
+    return;
+  }
+  sim.lastRgb = sim.t; sim.staticFor = 0;
+  if(!sim.faults.depth) sim.lastDepth = sim.t;
+
+  var x=sim.pose[0], y=sim.pose[1], th=sim.pose[2], rays=71;
+  for(var i=0;i<rays;i++){
+    var a = th - FOV/2 + FOV*i/(rays-1), ca=Math.cos(a), sa=Math.sin(a);
+    var block = -9.9, steps = Math.floor(SENSOR_RANGE/(RES*0.5));
+    for(var s=1;s<=steps;s++){
+      var d = s*RES*0.5;
+      var cx = Math.floor((x+ca*d)/RES), cy = Math.floor((y+sa*d)/RES);
+      if(!inb(cx,cy)) break;
+      observe(cx,cy);
+      var hh = hAt(cx,cy);
+      if(hh > block + 0.35){ block = hh; if(hh > 0.8) break; }
+    }
+  }
+}
+
+function nearestHazard(){
+  if(sim.faults.depth) return NaN;
+  var x=sim.pose[0], y=sim.pose[1], th=sim.pose[2];
+  var best = NaN, reach = Math.ceil(SENSOR_RANGE/RES);
+  var cx0 = Math.floor(x/RES), cy0 = Math.floor(y/RES);
+  for(var dy=-reach;dy<=reach;dy++) for(var dx=-reach;dx<=reach;dx++){
+    var cx=cx0+dx, cy=cy0+dy;
+    if(!inb(cx,cy) || !sim.lethal[idx(cx,cy)]) continue;
+    var wx=(cx+0.5)*RES, wy=(cy+0.5)*RES, dd=Math.hypot(wx-x,wy-y);
+    if(dd > SENSOR_RANGE) continue;
+    var b = Math.abs(Math.atan2(wy-y,wx-x) - th);
+    b = Math.min(b, 2*Math.PI - b);
+    if(b > FOV/2) continue;
+    if(isNaN(best) || dd < best) best = dd;
+  }
+  return best;
+}
+
+function inflate(){
+  sim.planCost.set(sim.cost);
+  sim.planBlocked.set(sim.lethal);
+  var reach = Math.ceil(INFLATION/RES);
+  for(var cy=0;cy<H;cy++) for(var cx=0;cx<W;cx++){
+    if(!sim.lethal[idx(cx,cy)]) continue;
+    for(var dy=-reach;dy<=reach;dy++) for(var dx=-reach;dx<=reach;dx++){
+      var x=cx+dx, y=cy+dy;
+      if(!inb(x,y)) continue;
+      var i=idx(x,y);
+      if(sim.lethal[i]) continue;
+      var d = Math.hypot(dx,dy)*RES;
+      if(d <= INSCRIBED) sim.planBlocked[i] = 1;
+      else if(d <= INFLATION){
+        var decay = 1 - (d-INSCRIBED)/(INFLATION-INSCRIBED);
+        if(0.85*decay > sim.planCost[i]) sim.planCost[i] = 0.85*decay;
+      }
+    }
+  }
+  sim.dirty = false;
+}
+
+var NB = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.4142],[1,-1,1.4142],[-1,1,1.4142],[-1,-1,1.4142]];
+var COST_GAIN = 12;
+
+function astar(sx,sy,gx,gy){
+  if(!inb(sx,sy)||!inb(gx,gy)) return [];
+  if(sim.planBlocked[idx(gx,gy)]) return [];
+  var g = new Float64Array(W*H).fill(Infinity);
+  var from = new Int32Array(W*H).fill(-1);
+  var done = new Uint8Array(W*H);
+  var heap = [[Math.hypot(sx-gx,sy-gy), idx(sx,sy)]];
+  g[idx(sx,sy)] = 0;
+  var pop = function(){
+    var top = heap[0], last = heap.pop();
+    if(heap.length){ heap[0]=last; var i=0;
+      for(;;){ var l=2*i+1,r=l+1,m=i;
+        if(l<heap.length && heap[l][0]<heap[m][0]) m=l;
+        if(r<heap.length && heap[r][0]<heap[m][0]) m=r;
+        if(m===i) break; var tmp=heap[i]; heap[i]=heap[m]; heap[m]=tmp; i=m; } }
+    return top;
+  };
+  var push = function(v){ heap.push(v); var i=heap.length-1;
+    while(i>0){ var p=(i-1)>>1; if(heap[p][0]<=heap[i][0]) break;
+      var tmp=heap[i]; heap[i]=heap[p]; heap[p]=tmp; i=p; } };
+  var target = idx(gx,gy), guard = 0;
+
+  while(heap.length){
+    var cur = pop(), ci = cur[1];
+    if(done[ci]) continue;
+    done[ci] = 1;
+    if(ci === target) break;
+    if(++guard > 120000) return [];
+    var cx = ci%W, cy = (ci/W)|0;
+    for(var k=0;k<8;k++){
+      var nx=cx+NB[k][0], ny=cy+NB[k][1];
+      if(!inb(nx,ny)) continue;
+      var ni=idx(nx,ny);
+      if(sim.planBlocked[ni] || done[ni]) continue;
+      var ng = g[ci] + NB[k][2]*(1 + COST_GAIN*sim.planCost[ni]);
+      if(ng < g[ni]){ g[ni]=ng; from[ni]=ci; push([ng + Math.hypot(nx-gx,ny-gy), ni]); }
+    }
+  }
+  if(from[target] === -1 && target !== idx(sx,sy)) return [];
+  var out = [], node = target;
+  while(node !== -1){ out.push([((node%W)+0.5)*RES, (((node/W)|0)+0.5)*RES]); node = from[node]; }
+  return out.reverse();
+}
+
+function replan(){
+  if(sim.dirty) inflate();
+  var sx = Math.floor(sim.pose[0]/RES), sy = Math.floor(sim.pose[1]/RES);
+  if(inb(sx,sy)) sim.planBlocked[idx(sx,sy)] = sim.lethal[idx(sx,sy)];
+  var had = sim.path.length;
+  sim.path = astar(sx, sy, Math.floor(sim.goal[0]/RES), Math.floor(sim.goal[1]/RES));
+  sim.lastReplan = sim.t;
+  if(had > 1 && sim.path.length <= 1) log("plan","no route to the goal");
+}
+
+function pursue(){
+  if(sim.path.length < 2) return [0,0];
+  var x=sim.pose[0], y=sim.pose[1], th=sim.pose[2], look=1.2;
+  var target = sim.path[sim.path.length-1];
+  for(var i=0;i<sim.path.length;i++){
+    if(Math.hypot(sim.path[i][0]-x, sim.path[i][1]-y) >= look){ target = sim.path[i]; break; }
+  }
+  var dx=target[0]-x, dy=target[1]-y;
+  if(Math.hypot(dx,dy) < 1e-6) return [0,0];
+  var err = Math.atan2(Math.sin(Math.atan2(dy,dx)-th), Math.cos(Math.atan2(dy,dx)-th));
+  var omega = Math.max(-1.6, Math.min(1.6, 2.0*err));
+  var v = 1.0 * Math.max(0.15, Math.cos(Math.min(Math.abs(err), Math.PI/2)));
+  if(Math.abs(err) > 1.2) v = 0;
+  return [v, omega];
+}
+
+function stepSim(){
+  if(sim.outcome) return;
+  sim.t += DT;
+  sense();
+  if(sim.t - sim.lastReplan > 0.5 || !sim.path.length || sim.dirty) replan();
+
+  var cmd = pursue();
+  sim.nearest = nearestHazard();
+  var d = supervise({
+    now:sim.t, lastRgb:sim.lastRgb, lastDepth:sim.lastDepth,
+    staticFor:sim.staticFor, poseValid:!sim.faults.slam, cov:0.05,
+    nearest:sim.nearest, conf:sim.faults.cam ? 0 : 0.9,
+    pathValid:sim.path.length > 1, lin:cmd[0], ang:cmd[1]
+  });
+  d.cmdIn = cmd;
+  sim.decision = d;
+
+  var th = sim.pose[2] + d.ang*DT;
+  var nx = sim.pose[0] + d.lin*Math.cos(th)*DT;
+  var ny = sim.pose[1] + d.lin*Math.sin(th)*DT;
+  var cx = Math.floor(nx/RES), cy = Math.floor(ny/RES);
+  var hit = inb(cx,cy) && stepAt(cx,cy) >= TL.step_lethal;
+  sim.pose = [nx, ny, th];
+  sim.trail.push([nx,ny]);
+  if(sim.trail.length > 900) sim.trail.shift();
+
+  noteState(d);
+
+  var dist = Math.hypot(nx-sim.goal[0], ny-sim.goal[1]);
+  if(hit){ sim.outcome="collision"; log("stop","COLLISION — drove onto lethal terrain"); sim.running=false; }
+  else if(dist <= GOAL_TOL){ sim.outcome="success"; log("pass","goal reached — no collisions"); sim.running=false; }
+  else if(sim.t > 240){ sim.outcome="timeout"; log("stop","timeout"); sim.running=false; }
+  else if(d.action === 2){
+    if(sim.stopSince === null) sim.stopSince = sim.t;
+    else if(sim.t - sim.stopSince > 8){ sim.outcome="safe_abort"; log("stop","safe abort — halted and stayed halted"); sim.running=false; }
+  } else sim.stopSince = null;
+}
+
+var lastKey = null;
+function noteState(d){
+  var key = d.action + "|" + d.reason;
+  if(key === lastKey) return;
+  lastKey = key;
+  var kind = d.action === 2 ? "stop" : (d.action === 1 ? "slow" : "pass");
+  var msg = d.action === 0 ? "driving — command passed through"
+          : (d.action === 1 ? "slowed — " + REASON[d.reason]
+                            : "STOPPED — " + REASON[d.reason]);
+  log(kind, msg);
+}
+
+/* ===================================================================
+   LOG
+   =================================================================== */
+var entries = [];
+function log(kind, msg){
+  entries.push({t:sim.t, kind:kind, msg:msg});
+  if(entries.length > 400) entries.shift();
+  var el = document.getElementById("log");
+  var row = document.createElement("div");
+  row.className = "e " + kind;
+  var ts = document.createElement("span"); ts.className="ts"; ts.textContent = sim.t.toFixed(1)+"s";
+  var m = document.createElement("span"); m.className="m"; m.textContent = msg;
+  row.appendChild(ts); row.appendChild(m);
+  el.appendChild(row);
+  while(el.children.length > 200) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ===================================================================
+   RENDER
+   =================================================================== */
+var ec = document.getElementById("edit"), bc = document.getElementById("belief");
+var ex = ec.getContext("2d"), bx = bc.getContext("2d");
+var S = 12;
+ec.width = bc.width = W*S; ec.height = bc.height = H*S;
+
+/* Terrain changes only when someone edits it, so it renders once into an
+   offscreen canvas and is blitted per frame. Without this the glyph pass below
+   would run thousands of fillText calls every tick. */
+var tcan = document.createElement("canvas");
+tcan.width = ec.width; tcan.height = ec.height;
+var tx = tcan.getContext("2d");
+var terrainDirty = true;
+function markTerrain(){ terrainDirty = true; }
+
+var EMOJI_FONT = "'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',system-ui,sans-serif";
+var GLYPH = {};
+GLYPH[C_TREE]   = "\uD83C\uDF32";
+GLYPH[C_WALL]   = "\uD83E\uDDF1";
+GLYPH[C_WATER]  = "\uD83D\uDCA7";
+GLYPH[C_DITCH]  = "\uD83D\uDD73";
+GLYPH[C_MUD]    = "\uD83D\uDFE4";
+GLYPH[C_GRAVEL] = "\u2234";
+var GK = 3;   // one mark every GK cells, so a feature is tiled and not dotted
+
+var RAMP = [[0,[29,127,140]],[0.25,[47,158,107]],[0.5,[141,184,60]],
+            [0.7,[224,181,58]],[0.85,[224,122,48]],[1,[209,67,95]]];
+function ramp(v){
+  v = Math.max(0,Math.min(1,v));
+  for(var i=1;i<RAMP.length;i++){
+    if(v <= RAMP[i][0]){
+      var a=RAMP[i-1], b=RAMP[i], f=(v-a[0])/((b[0]-a[0])||1);
+      return "rgb("+Math.round(a[1][0]+(b[1][0]-a[1][0])*f)+","+
+                    Math.round(a[1][1]+(b[1][1]-a[1][1])*f)+","+
+                    Math.round(a[1][2]+(b[1][2]-a[1][2])*f)+")";
+    }
+  }
+  return "rgb(209,67,95)";
+}
+function cvar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+function redrawTerrain(){
+  tx.fillStyle = cvar("--map-bg"); tx.fillRect(0,0,tcan.width,tcan.height);
+  for(var cy=0;cy<H;cy++) for(var cx=0;cx<W;cx++){
+    var i=idx(cx,cy), cls=classes[i], h=heights[i], col;
+    if(cls === C_DIRT || cls === C_GRASS){
+      var sh = Math.max(0, Math.min(255, Math.round(120 + h*95)));
+      col = "rgb("+sh+","+Math.round(sh*0.85)+","+Math.round(sh*0.62)+")";
+    } else col = TERRAIN_COLOUR[cls] || "#8a7256";
+    tx.fillStyle = col; tx.fillRect(cx*S, cy*S, S, S);
+  }
+
+  /* Stone, boulder and wall are three greys; mud, tree and a dirt slope are
+     three browns. Colour cannot separate them, so every class carries a mark.
+     Rock splits on height because stone and boulder are the SAME class and
+     differ only in how tall they stand. */
+  tx.textAlign = "center"; tx.textBaseline = "middle";
+  tx.font = Math.round(S*1.75) + "px " + EMOJI_FONT;
+  for(var gy=1;gy<H;gy+=GK) for(var gx=1;gx<W;gx+=GK){
+    var j=idx(gx,gy), cls2=classes[j], g;
+    if(cls2 === C_ROCK) g = heights[j] >= 0.8 ? "\uD83D\uDDFF" : "\uD83E\uDEA8";
+    else g = GLYPH[cls2];
+    if(!g) continue;
+    tx.fillText(g, (gx+0.5)*S, (gy+0.5)*S);
+  }
+
+  /* Slope is a field, not an object, so it gets an arrow pointing uphill
+     rather than an icon -- amber where it is merely expensive, red past
+     slope_lethal where the cost function refuses it outright. */
+  for(var sy=1;sy<H;sy+=GK) for(var sx=1;sx<W;sx+=GK){
+    var k=idx(sx,sy);
+    if(classes[k] !== C_DIRT && classes[k] !== C_GRASS) continue;
+    var s = slopeAt(sx,sy);
+    if(s < TL.slope_max*0.5) continue;
+    var dx = hAt(sx+1,sy)-hAt(sx-1,sy), dy = hAt(sx,sy+1)-hAt(sx,sy-1);
+    if(dx === 0 && dy === 0) continue;
+    var r = S*0.8;
+    tx.save();
+    tx.translate((sx+0.5)*S, (sy+0.5)*S);
+    tx.rotate(Math.atan2(dy, dx));          // grid y grows downward, as screen y does
+    tx.fillStyle = s >= TL.slope_lethal ? "rgba(240,92,92,.95)" : "rgba(232,186,64,.92)";
+    tx.strokeStyle = "rgba(0,0,0,.5)"; tx.lineWidth = 1;
+    tx.beginPath();
+    tx.moveTo(r,0); tx.lineTo(-r*0.68, r*0.6); tx.lineTo(-r*0.68,-r*0.6);
+    tx.closePath(); tx.fill(); tx.stroke();
+    tx.restore();
+  }
+}
+
+function drawEdit(){
+  if(terrainDirty){ redrawTerrain(); terrainDirty = false; }
+  ex.drawImage(tcan, 0, 0);
+  overlay(ex, false);
+}
+
+function drawBelief(){
+  bx.fillStyle = cvar("--map-bg"); bx.fillRect(0,0,bc.width,bc.height);
+  var unseen = cvar("--unseen");
+  for(var cy=0;cy<H;cy++) for(var cx=0;cx<W;cx++){
+    var i=idx(cx,cy);
+    bx.fillStyle = sim.observed[i] ? (sim.lethal[i] ? "#d1435f" : ramp(sim.cost[i])) : unseen;
+    bx.fillRect(cx*S, cy*S, S, S);
+  }
+  /* Lethal is a refusal, not merely the top of the cost ramp, so it is marked
+     rather than left to be read off a colour near the red end. */
+  bx.strokeStyle = "rgba(24,6,10,.8)"; bx.lineWidth = Math.max(1, S*0.13);
+  for(var ly=1;ly<H;ly+=2) for(var lx=1;lx<W;lx+=2){
+    var j=idx(lx,ly);
+    if(!sim.observed[j] || !sim.lethal[j]) continue;
+    var x0=lx*S, y0=ly*S, m=S*0.27;
+    bx.beginPath();
+    bx.moveTo(x0+m,y0+m);   bx.lineTo(x0+S-m,y0+S-m);
+    bx.moveTo(x0+S-m,y0+m); bx.lineTo(x0+m,  y0+S-m);
+    bx.stroke();
+  }
+  overlay(bx, true);
+}
+
+function overlay(ctx, withPath){
+  var px = function(v){ return v/RES*S; };
+  if(withPath && sim.path.length > 1){
+    ctx.strokeStyle = cvar("--accent"); ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    sim.path.forEach(function(p,i){ i ? ctx.lineTo(px(p[0]),px(p[1])) : ctx.moveTo(px(p[0]),px(p[1])); });
+    ctx.stroke();
+  }
+  if(sim.trail.length > 1){
+    ctx.strokeStyle = "rgba(150,190,225,.7)"; ctx.lineWidth = 1.4;
+    ctx.setLineDash([4,4]); ctx.beginPath();
+    sim.trail.forEach(function(p,i){ i ? ctx.lineTo(px(p[0]),px(p[1])) : ctx.moveTo(px(p[0]),px(p[1])); });
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.strokeStyle = "#4ade80"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(px(sim.start[0]),px(sim.start[1]),S*0.9,0,6.284); ctx.stroke();
+  ctx.strokeStyle = cvar("--accent"); ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(px(sim.goal[0]),px(sim.goal[1]),S*1.5,0,6.284); ctx.stroke();
+
+  var x=sim.pose[0], y=sim.pose[1], th=sim.pose[2];
+  ctx.fillStyle = "rgba(255,255,255,.09)";
+  ctx.beginPath(); ctx.moveTo(px(x),px(y));
+  ctx.arc(px(x),px(y),px(SENSOR_RANGE), th-FOV/2, th+FOV/2);
+  ctx.closePath(); ctx.fill();
+
+  var a = sim.decision ? sim.decision.action : 2;
+  ctx.fillStyle = a===2 ? "#f87171" : (a===1 ? "#fbbf24" : "#4ade80");
+  ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.lineWidth = 1;
+  var n = S*1.9;
+  ctx.beginPath();
+  ctx.moveTo(px(x)+n*Math.cos(th), px(y)+n*Math.sin(th));
+  ctx.lineTo(px(x)+n*0.7*Math.cos(th+2.4), px(y)+n*0.7*Math.sin(th+2.4));
+  ctx.lineTo(px(x)+n*0.7*Math.cos(th-2.4), px(y)+n*0.7*Math.sin(th-2.4));
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+}
+
+function setv(id, text, cls){
+  var el = document.getElementById(id);
+  el.textContent = text; el.className = cls || "";
+}
+
+function readout(){
+  var d = sim.decision;
+  var st = document.getElementById("st"), wh = document.getElementById("wh");
+  if(!d){ st.textContent="IDLE"; st.className="st pass"; wh.textContent="press Run"; }
+  else {
+    var names=["PASS","SLOW","STOP"], cls=["pass","slow","stop"];
+    st.textContent = names[d.action]; st.className = "st "+cls[d.action];
+    wh.textContent = d.action===0 ? "command passed through" : REASON[d.reason];
+  }
+  setv("ci", d ? d.cmdIn[0].toFixed(2)+" m/s" : "0.00 m/s");
+  setv("co", d ? d.lin.toFixed(2)+" m/s" : "0.00 m/s",
+       d && d.lin===0 && d.cmdIn[0]>0 ? "bad" : "");
+  setv("ra", d ? Math.min(d.rgbAge,99).toFixed(2)+" s" : "0.00 s", d && d.rgbAge>0.3 ? "bad":"");
+  setv("da", d ? Math.min(d.depthAge,99).toFixed(2)+" s" : "0.00 s", d && d.depthAge>0.3 ? "bad":"");
+  setv("sf", sim.staticFor.toFixed(2)+" s", sim.staticFor>=2 ? "bad" : (sim.staticFor>0.5?"warn":""));
+  setv("no", isNaN(sim.nearest) ? "none" : sim.nearest.toFixed(2)+" m",
+       !isNaN(sim.nearest) && sim.nearest < 0.8 ? "bad":"");
+  var lethal = 0; for(var i=0;i<sim.lethal.length;i++) lethal += sim.lethal[i];
+  setv("lc", String(lethal));
+  setv("dg", Math.hypot(sim.pose[0]-sim.goal[0], sim.pose[1]-sim.goal[1]).toFixed(2)+" m");
+  document.getElementById("clock").textContent = "t = "+sim.t.toFixed(1)+" s";
+  var seen = 0; for(var j=0;j<sim.observed.length;j++) seen += sim.observed[j];
+  document.getElementById("cover").textContent = (100*seen/(W*H)).toFixed(1)+" %";
+}
+
+function draw(){ drawEdit(); drawBelief(); readout(); }
+
+/* ===================================================================
+   COURSES
+   =================================================================== */
+function rect(x0,y0,x1,y1,h,cls){
+  for(var cy=Math.floor(y0/RES);cy<=Math.floor(y1/RES);cy++)
+    for(var cx=Math.floor(x0/RES);cx<=Math.floor(x1/RES);cx++)
+      if(inb(cx,cy)){ var i=idx(cx,cy); if(h!==null) heights[i]=h; if(cls!==null) classes[i]=cls; }
+}
+function disc(x,y,r,h,cls){
+  var rc = Math.ceil(r/RES), cx0=Math.floor(x/RES), cy0=Math.floor(y/RES);
+  for(var dy=-rc;dy<=rc;dy++) for(var dx=-rc;dx<=rc;dx++){
+    var cx=cx0+dx, cy=cy0+dy;
+    if(!inb(cx,cy)) continue;
+    if(Math.hypot(dx,dy)*RES <= r){ var i=idx(cx,cy); if(h!==null) heights[i]=h; if(cls!==null) classes[i]=cls; }
+  }
+  markTerrain();
+}
+function ramp2(x0,x1,peak){
+  for(var cy=0;cy<H;cy++) for(var cx=Math.floor(x0/RES);cx<=Math.floor(x1/RES);cx++){
+    if(!inb(cx,cy)) continue;
+    var f = (cx*RES - x0)/(x1-x0);
+    heights[idx(cx,cy)] = peak*Math.sin(f*Math.PI);
+  }
+  markTerrain();
+}
+
+var COURSES = {
+  ditch: function(){ rect(9.5,0,11.2,10.5,-0.6,C_DITCH); disc(6,4,0.5,0.45,C_ROCK); disc(6.5,10,0.5,0.45,C_ROCK); },
+  slalom: function(){ for(var i=0;i<7;i++) disc(4+i*2.6, i%2 ? 5.2 : 9.8, 0.75, 0.5, C_ROCK); },
+  corridor: function(){
+    rect(7,0,7.6,5.8,1.0,C_WALL); rect(7,9.2,7.6,15,1.0,C_WALL);
+    rect(14,0,14.6,9.2,1.0,C_WALL); rect(14,12.6,14.6,15,1.0,C_WALL);
+    rect(19,2.4,19.6,15,1.0,C_WALL);
+  },
+  ramp: function(){ ramp2(7,13,0.55); disc(16,7.5,1.6,0,C_MUD); disc(10,12,1.0,0,C_WATER); },
+  gauntlet: function(){
+    ramp2(4.5,8.5,0.5);
+    disc(11,4.5,0.6,0.45,C_ROCK); disc(11.5,10.5,0.6,0.45,C_ROCK);
+    rect(14,0,14.6,6.5,1.0,C_WALL);
+    rect(16.5,9,17.6,15,-0.6,C_DITCH);
+    disc(19.5,4.5,1.3,0,C_MUD);
+    disc(21,11,0.35,1.8,C_TREE); disc(22,9,0.35,1.8,C_TREE);
+    for(var i=0;i<40;i++) disc(6+ (i*0.9)%16, 12.5 + (i%3)*0.6, 0.3, 0.05, C_GRAVEL);
+  }
+};
+
+/* ===================================================================
+   UI
+   =================================================================== */
+function buildTools(){
+  var host = document.getElementById("tools");
+  TOOLS.forEach(function(t){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "tool";
+    b.setAttribute("aria-pressed", t.id === tool ? "true" : "false");
+    b.dataset.tool = t.id;
+    b.title = t.hint;
+    b.innerHTML = '<span class="chip"></span><span class="nm"></span><kbd></kbd>';
+    var chip = b.querySelector(".chip");
+    chip.textContent = t.icon;
+    chip.style.color = t.colour;
+    chip.style.background = t.colour + "2e";
+    b.querySelector(".nm").textContent = t.name;
+    b.querySelector("kbd").textContent = t.key;
+    b.addEventListener("click", function(){ pick(t.id); });
+    host.appendChild(b);
+  });
+}
+function pick(id){
+  tool = id;
+  document.querySelectorAll(".tool[data-tool]").forEach(function(b){
+    b.setAttribute("aria-pressed", b.dataset.tool === id ? "true" : "false");
+  });
+}
+
+var painting = false;
+function cellFromEvent(e){
+  var r = ec.getBoundingClientRect();
+  var x = (e.clientX - r.left) / r.width * W;
+  var y = (e.clientY - r.top) / r.height * H;
+  return [Math.floor(x), Math.floor(y)];
+}
+function paint(e){
+  var c = cellFromEvent(e);
+  if(!inb(c[0],c[1])) return;
+  var note = stamp(c[0], c[1]);
+  sim.dirty = true;
+  if(note) log("edit", note);
+  else if(!paint.last || Math.hypot(c[0]-paint.last[0], c[1]-paint.last[1]) > 6){
+    paint.last = c;
+    log("edit", tool + " placed at " + (c[0]*RES).toFixed(1) + ", " + (c[1]*RES).toFixed(1) + " m");
+  }
+  // Anything already observed must be re-observed before the belief updates:
+  // the vehicle does not learn about terrain by it being edited.
+  draw();
+}
+ec.addEventListener("pointerdown", function(e){ painting = true; paint.last = null; ec.setPointerCapture(e.pointerId); paint(e); });
+ec.addEventListener("pointermove", function(e){
+  var c = cellFromEvent(e);
+  document.getElementById("hover").textContent =
+    inb(c[0],c[1]) ? (c[0]*RES).toFixed(1)+", "+(c[1]*RES).toFixed(1)+" m" : "—";
+  if(painting) paint(e);
+});
+ec.addEventListener("pointerup", function(){ painting = false; });
+ec.addEventListener("pointerleave", function(){ painting = false; });
+
+document.getElementById("brush").addEventListener("input", function(){
+  brush = parseInt(this.value,10);
+  document.getElementById("brush-v").textContent = this.value;
+});
+
+document.getElementById("play").addEventListener("click", function(){
+  if(sim.outcome) resetRun(true);
+  sim.running = !sim.running;
+  this.textContent = sim.running ? "Pause" : "Run";
+  log("sys", sim.running ? "running" : "paused");
+});
+document.getElementById("step").addEventListener("click", function(){
+  sim.running = false; document.getElementById("play").textContent = "Run";
+  stepSim(); draw();
+});
+document.getElementById("reset").addEventListener("click", function(){
+  sim.running = false; document.getElementById("play").textContent = "Run";
+  lastKey = null; resetRun(true); draw();
+});
+document.getElementById("clear").addEventListener("click", function(){
+  sim.running = false; document.getElementById("play").textContent = "Run";
+  lastKey = null; resetRun(false); log("edit","terrain cleared"); draw();
+});
+document.getElementById("preset").addEventListener("change", function(){
+  var k = this.value; if(!k) return;
+  sim.running = false; document.getElementById("play").textContent = "Run";
+  lastKey = null;
+  heights.fill(0); classes.fill(C_DIRT); markTerrain();
+  sim.start = [1.2,7.5]; sim.goal = [23.0,7.5];
+  COURSES[k]();
+  resetRun(true);
+  log("edit", "loaded course: " + this.options[this.selectedIndex].textContent);
+  this.value = "";
+  draw();
+});
+document.getElementById("speed").addEventListener("change", function(){ speed = parseFloat(this.value); });
+
+/* Either map can take the full width. Both are useful, but the gap between
+   them is only worth the split screen while you are watching for it. */
+document.querySelectorAll(".seg .ctl[data-view]").forEach(function(b){
+  b.addEventListener("click", function(){
+    var v = this.dataset.view;
+    document.querySelectorAll(".seg .ctl[data-view]").forEach(function(o){
+      o.setAttribute("aria-pressed", o.dataset.view === v ? "true" : "false");
+    });
+    document.querySelector(".maps").classList.toggle("solo", v !== "both");
+    document.getElementById("fig-truth").hidden  = (v === "belief");
+    document.getElementById("fig-belief").hidden = (v === "truth");
+    draw();
+  });
+});
+
+/* The cached terrain bakes in --map-bg, so a theme switch has to invalidate it
+   or the map keeps the old ground under the new palette. */
+if(window.matchMedia){
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var onTheme = function(){ markTerrain(); draw(); };
+  if(mq.addEventListener) mq.addEventListener("change", onTheme);
+  else if(mq.addListener) mq.addListener(onTheme);
+}
+
+[["f-freeze","freeze","camera freeze"],["f-cam","cam","camera dropout"],
+ ["f-depth","depth","depth dropout"],["f-slam","slam","SLAM loss"]].forEach(function(f){
+  document.getElementById(f[0]).addEventListener("click", function(){
+    sim.faults[f[1]] = !sim.faults[f[1]];
+    this.setAttribute("aria-pressed", sim.faults[f[1]] ? "true":"false");
+    this.classList.toggle("armed", sim.faults[f[1]]);
+    if(!sim.faults.freeze) sim.staticFor = 0;
+    log("edit", (sim.faults[f[1]] ? "INJECTED " : "cleared ") + f[2]);
+  });
+});
+
+document.addEventListener("keydown", function(e){
+  if(e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  var t = TOOLS.filter(function(x){ return x.key === e.key.toLowerCase(); })[0];
+  if(t){ pick(t.id); return; }
+  if(e.key === " "){ e.preventDefault(); document.getElementById("play").click(); }
+});
+
+/* ------------------------------------------------------------- loop */
+var speed = 1, acc = 0, last = 0;
+function frame(now){
+  if(!last) last = now;
+  var dt = now - last; last = now;
+  if(sim.running){
+    acc += dt;
+    var target = 100*speed, guard = 0;
+    while(acc >= target && guard < 8){ acc -= target; stepSim(); guard++; }
+    draw();
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------------------------------------------------------- startup */
+var parity = checkParity();
+var badge = document.getElementById("parity");
+if(parity.ok){
+  badge.className = "parity ok";
+  badge.textContent = "logic verified against C++ · " + parity.n + "/" + parity.n;
+} else {
+  badge.className = "parity bad";
+  badge.textContent = "PARITY FAILED · " + parity.bad + " of " + parity.n + " disagree with C++";
+}
+
+buildTools();
+COURSES.gauntlet();
+resetRun(true);
+log("sys", "gauntlet course loaded — edit the terrain, then press Run");
+draw();
+requestAnimationFrame(frame);
+})();
+</script>

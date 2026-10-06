@@ -1,0 +1,112 @@
+# RTAB-Map configuration for DRISHTI-UGV.
+#
+# ===========================================================================
+# THE POINT OF THIS PHASE
+#
+# RTAB-Map becomes the sole source of map -> odom. Nothing else may publish
+# that edge (SPEC.md 3.2 rule 1), and NO GNSS or simulator ground-truth pose
+# may enter the graph at any point, including initialisation (CONTRIBUTING.md
+# non-negotiable 5). /ground_truth/pose is recorded to the bag and read
+# afterwards by drishti_eval; if any node ever subscribes to it at run time,
+# every localisation number in this project becomes meaningless.
+# ===========================================================================
+#
+# Stereo, not RGB-D: the depth camera in the description is co-located with the
+# left optical frame and exists for the elevation pipeline (Phase 3). Feeding
+# simulated perfect depth into SLAM would flatter the results and hide exactly
+# the failure mode -- low-texture drift -- that Phase 2 exists to measure.
+#
+# !! UNVERIFIED !! Never loaded. RTAB-Map parameter names are its own
+# (Rtabmap/, Vis/, Odom/ prefixes as strings) and drift between releases.
+# Check against `rtabmap --params` for the installed version before trusting
+# any line here.
+
+# ---------------------------------------------------------------------------
+# Stereo visual odometry: odom -> base_link when wheel odometry is not trusted.
+#
+# In Phase 2 we keep the simulator's wheel odometry as the odom source and let
+# RTAB-Map supply only map -> odom. Wheel odometry on flat ground is good, and
+# changing two things at once makes a drift regression impossible to localise.
+# Switch this on in Phase 3+ where slip matters, and record the change.
+# ---------------------------------------------------------------------------
+stereo_odometry:
+  ros__parameters:
+    use_sim_time: true
+    frame_id: base_link
+    odom_frame_id: odom_visual        # deliberately NOT "odom": see above
+    publish_tf: false                 # nothing here owns odom -> base_link yet
+    approx_sync: false                # stereo pair is hardware-synchronised
+    wait_imu_to_init: true
+    guess_frame_id: odom
+
+    Odom/Strategy: "0"                # 0 = Frame-to-Map
+    Odom/ResetCountdown: "1"          # relocalise rather than sit lost
+    Odom/GuessMotion: "true"
+    Vis/CorType: "0"                  # 0 = features matching
+    Vis/MaxFeatures: "1000"
+    Vis/MinInliers: "20"
+    GFTT/MinDistance: "7"
+    GFTT/QualityLevel: "0.001"
+
+# ---------------------------------------------------------------------------
+# The map and loop closure. This node owns map -> odom.
+# ---------------------------------------------------------------------------
+rtabmap:
+  ros__parameters:
+    use_sim_time: true
+    frame_id: base_link
+    map_frame_id: map
+    odom_frame_id: odom
+    publish_tf: true                  # map -> odom, and this node alone
+    subscribe_stereo: true
+    subscribe_depth: false
+    subscribe_scan: false
+    subscribe_odom_info: false
+    approx_sync: false
+    queue_size: 30
+
+    # Start clean every run. Carrying a database between runs would let a
+    # previous mission's map silently improve the next one's numbers, which
+    # would make the randomised suite in Phase 6 dishonest.
+    database_path: "~/.ros/drishti_rtabmap.db"
+    Mem/IncrementalMemory: "true"
+    Mem/InitWMWithAllNodes: "false"
+
+    # Loop closure. TASK.md Phase 2 requires demonstrating closure on a
+    # revisited route; these are the knobs that decide whether it fires.
+    Rtabmap/DetectionRate: "1.0"           # Hz
+    Rtabmap/LoopThr: "0.11"
+    Rtabmap/TimeThr: "0"                   # no time budget; correctness first
+    RGBD/OptimizeFromGraphEnd: "false"
+    RGBD/ProximityBySpace: "true"
+    RGBD/AngularUpdate: "0.05"             # rad before a new node
+    RGBD/LinearUpdate: "0.10"              # m before a new node
+    Kp/MaxFeatures: "500"
+    Kp/DetectorStrategy: "6"               # 6 = GFTT/BRIEF
+    Reg/Strategy: "0"                      # 0 = visual
+    Reg/Force3DoF: "true"                  # ground vehicle: planar constraint
+    Optimizer/Strategy: "1"                # 1 = g2o
+    Optimizer/Robust: "true"
+
+    # 2D occupancy grid for Nav2's global costmap.
+    Grid/FromDepth: "true"
+    Grid/RayTracing: "true"
+    Grid/3D: "false"
+    Grid/CellSize: "0.10"
+    Grid/RangeMax: "10.0"
+    Grid/MaxObstacleHeight: "1.5"
+    Grid/MaxGroundHeight: "0.10"
+    # SPEC.md 6.2: unknown space is not free. Nav2's planner has
+    # allow_unknown false to match.
+    Grid/PreVoxelFiltering: "true"
+
+# ---------------------------------------------------------------------------
+# Diagnostic viewer only. Never required for the stack to run.
+# ---------------------------------------------------------------------------
+rtabmap_viz:
+  ros__parameters:
+    use_sim_time: true
+    frame_id: base_link
+    subscribe_stereo: true
+    subscribe_odom_info: true
+    approx_sync: false

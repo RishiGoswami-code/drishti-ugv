@@ -1,0 +1,59 @@
+# ---- colcon / ROS 2 workspace ----
+build/
+install/
+log/
+.colcon/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# ---- experiment artefacts ----
+# Recordings and reports are large and regenerable. Keep the scenario
+# definitions, seeds and parameter sets in git; keep the outputs out.
+bags/
+*.db3
+*.mcap
+results/
+reports/
+
+# ---- model weights ----
+# Pull from source at setup time; never vendor. Licences differ per weight
+# file (see REFERENCES.md section 3).
+*.pt
+*.pth
+*.onnx
+*.engine
+weights/
+
+# ---- office lock files ----
+# PowerPoint/Word leave ~$name.pptx owner-locks while a file is open. They are
+# unreadable by other processes and must never be committed.
+~$*
+
+# ---- scratch ----
+# Accidental saves and working copies of documents. Anything at the root
+# with these extensions is scratch.
+/*.pptx
+/*.pdf
+/*.docx
+
+# ---- editors / OS ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- generated web payloads ----
+# The lab page is committed because it is what the published artifact serves,
+# and a reader should be able to tie the live page to a commit. These two are
+# outputs of tools/export_runs.py and tools/build_page.py -- large, and
+# regenerable from the sources beside them.
+prototype/runs.json
+prototype/web/drishti_console.html

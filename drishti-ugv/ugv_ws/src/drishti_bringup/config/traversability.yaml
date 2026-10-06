@@ -1,0 +1,75 @@
+# DRISHTI-UGV — traversability cost weights and limits
+#
+# SPEC.md §6.1: "Weights are determined by controlled experiment, not by
+# taste." What follows is the STARTING SET, not a result. It has produced no
+# mission numbers, because nothing has been run.
+#
+# The rule for changing anything here, from EVALUATION.md §5: change one thing,
+# re-run the suite, record the weight set alongside the result it produced. A
+# weight set without a mission number attached is an opinion.
+#
+# The node logs the whole set at startup, so a rosbag identifies the
+# configuration that produced it without anyone having to remember.
+#
+# !! UNVERIFIED !! Never loaded.
+
+traversability_fusion:
+  ros__parameters:
+    use_sim_time: true
+
+    # --- relative importance (SPEC.md §6.1) -------------------------------
+    # These are RELATIVE: the core divides by their sum, so doubling all six
+    # changes nothing. Reasoning behind the starting values:
+    #
+    #   obstacle      highest — a step the wheels cannot climb ends the mission
+    #   semantic      next — mud and water are invisible to geometry
+    #   slope         moderate — recoverable up to a point, then lethal
+    #   roughness     moderate — costs speed and localisation quality
+    #   uncertainty   moderate — SPEC.md §6.2, must never be zero
+    #   height_var    lowest — correlated with roughness; avoid double-counting
+    weights:
+      slope: 1.0
+      roughness: 1.0
+      height_variance: 0.8
+      obstacle: 1.5
+      semantic: 1.2
+      uncertainty: 1.0
+
+    # --- where each term saturates ---------------------------------------
+    # Sized for the platform in drishti_description: 0.10 m wheel radius,
+    # 0.44 m track, hull 0.10 m clear of the ground.
+    limits:
+      slope_max: 0.35            # rad, ~20 deg — term reaches 1.0
+      slope_lethal: 0.52         # rad, ~30 deg — cell is lethal
+      roughness_max: 0.08        # m, residual to a locally fitted plane
+      height_variance_max: 0.010  # m^2
+      step_max: 0.12             # m — term reaches 1.0
+      step_lethal: 0.25          # m — above the wheel radius, unclimbable
+
+      # SPEC.md §6.2: unknown terrain is expensive, never free. High, but
+      # deliberately NOT lethal: lethal would forbid the planner from entering
+      # any unobserved space, and a vehicle that refuses to drive where it has
+      # not already been cannot reach a goal.
+      unknown_cost: 0.85
+
+    # --- elevation map layer names ----------------------------------------
+    # elevation_mapping_cupy publishes whatever its plugin configuration
+    # produces. slope, roughness and step come from optional plugins that must
+    # be enabled there. A layer named here that does not exist leaves those
+    # cells UNOBSERVED — priced at unknown_cost, which is the safe failure:
+    # a typo makes the robot cautious, not blind. The node warns once at
+    # startup for every layer it could not find.
+    layer:
+      elevation: "elevation"
+      variance: "variance"
+      slope: "slope"
+      roughness: "roughness"
+      step: "step"
+      visibility: "visibility"
+      semantic_cost: "semantic_cost"      # Phase 4 writes this
+      semantic_lethal: "semantic_lethal"  # Phase 4 writes this
+      confidence: "confidence"            # Phase 4 writes this
+
+    # Per-term layers for RViz and weight tuning. Cheap, and without them a
+    # bad mission result cannot be attributed to a term.
+    publish_debug_layers: true

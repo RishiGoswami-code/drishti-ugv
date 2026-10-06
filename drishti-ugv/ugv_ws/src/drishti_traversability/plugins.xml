@@ -1,0 +1,11 @@
+<library path="drishti_traversability_layer">
+  <class name="drishti_traversability::TraversabilityLayer"
+         type="drishti_traversability::TraversabilityLayer"
+         base_class_type="nav2_costmap_2d::Layer">
+    <description>
+      Projects the camera-derived traversability grid into a Nav2 costmap.
+      Never lowers an existing cost, and reports itself stale rather than
+      authorising motion on an old terrain map.
+    </description>
+  </class>
+</library>

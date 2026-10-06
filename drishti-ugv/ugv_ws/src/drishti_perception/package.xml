@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>drishti_perception</name>
+  <version>0.1.0</version>
+  <description>
+    Semantic perception: a pretrained detector, the SPEC.md section 5.2 class
+    vocabulary, perception health for the safety supervisor, and the nearest
+    hazard distance.
+
+    taxonomy, health and obstacle carry all the judgement and have no ROS or
+    model dependency, so they are tested directly. detector and perception_node
+    are plumbing.
+  </description>
+
+  <!-- TODO: replace with a real team contact before the repository is shared. -->
+  <maintainer email="team@thevikings.example">The Vikings</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>vision_msgs</exec_depend>
+  <exec_depend>drishti_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+
+  <!--
+    ultralytics is NOT declared here. It is AGPL-3.0 with a separate commercial
+    licence (REFERENCES.md section 3), it is imported lazily by detector.py, and
+    the tested half of this package does not need it. Install it deliberately
+    once the licence question is settled, rather than dragging it in as a
+    transitive dependency of every build.
+  -->
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

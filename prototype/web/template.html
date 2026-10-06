@@ -1,0 +1,954 @@
+<title>DRISHTI-UGV Mission Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground:   #eef2f6;
+    --panel:    #ffffff;
+    --panel-2:  #f5f8fa;
+    --line:     #d4dde5;
+    --line-2:   #e6ecf1;
+    --ink:      #13202b;
+    --ink-2:    #3c4d5c;
+    --muted:    #5f7386;
+    --accent:   #0d8496;
+    --accent-2: #0d849620;
+    --pass:     #15803d;
+    --slow:     #a86308;
+    --stop:     #c62828;
+    --map-bg:   #cbd6de;
+    --map-unseen: #9fb0bd;
+    --shadow:   0 1px 2px rgba(19,32,43,.08), 0 8px 24px rgba(19,32,43,.06);
+
+    --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --f-body:    "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --f-mono:    "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --ground:   #0b1016;
+      --panel:    #121a23;
+      --panel-2:  #18222d;
+      --line:     #24313f;
+      --line-2:   #1b2733;
+      --ink:      #dbe5ef;
+      --ink-2:    #b3c2d0;
+      --muted:    #7f93a6;
+      --accent:   #35b8c9;
+      --accent-2: #35b8c922;
+      --pass:     #4ade80;
+      --slow:     #fbbf24;
+      --stop:     #f87171;
+      --map-bg:   #080d12;
+      --map-unseen: #202b36;
+      --shadow:   0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.28);
+    }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0b1016;
+      --panel:    #121a23;
+      --panel-2:  #18222d;
+      --line:     #24313f;
+      --line-2:   #1b2733;
+      --ink:      #dbe5ef;
+      --ink-2:    #b3c2d0;
+      --muted:    #7f93a6;
+      --accent:   #35b8c9;
+      --accent-2: #35b8c922;
+      --pass:     #4ade80;
+      --slow:     #fbbf24;
+      --stop:     #f87171;
+      --map-bg:   #080d12;
+      --map-unseen: #202b36;
+      --shadow:   0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.28);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:   #0b1016;
+    --panel:    #121a23;
+    --panel-2:  #18222d;
+    --line:     #24313f;
+    --line-2:   #1b2733;
+    --ink:      #dbe5ef;
+    --ink-2:    #b3c2d0;
+    --muted:    #7f93a6;
+    --accent:   #35b8c9;
+    --accent-2: #35b8c922;
+    --pass:     #4ade80;
+    --slow:     #fbbf24;
+    --stop:     #f87171;
+    --map-bg:   #080d12;
+    --map-unseen: #202b36;
+    --shadow:   0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    line-height: 1.55;
+    margin: 0;
+    padding: 0 0 3rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1500px; margin: 0 auto; padding: 0 1.25rem; }
+
+  /* ---------------------------------------------------------- masthead */
+  .masthead {
+    border-bottom: 1px solid var(--line);
+    padding: 1.75rem 0 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .eyebrow {
+    font-family: var(--f-display);
+    font-size: .72rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 .35rem;
+  }
+  h1 {
+    font-family: var(--f-display);
+    font-size: clamp(1.85rem, 4vw, 2.7rem);
+    font-weight: 700;
+    letter-spacing: -.01em;
+    line-height: 1.05;
+    margin: 0 0 .5rem;
+    text-wrap: balance;
+  }
+  .standfirst {
+    color: var(--ink-2);
+    max-width: 66ch;
+    margin: 0;
+    font-size: 1.02rem;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  /* ------------------------------------------------------------ layout */
+  .console {
+    display: grid;
+    grid-template-columns: 196px minmax(0, 1fr) 272px;
+    gap: 1.1rem;
+    align-items: start;
+  }
+  @media (max-width: 1180px) {
+    .console { grid-template-columns: 200px minmax(0, 1fr); }
+    .telemetry { grid-column: 1 / -1; }
+  }
+  @media (max-width: 800px) {
+    .console { grid-template-columns: 1fr; }
+    .missions { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+  }
+
+  .label {
+    font-family: var(--f-display);
+    font-size: .68rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 .55rem;
+  }
+
+  /* ----------------------------------------------------- mission rail */
+  .missions { display: flex; flex-direction: column; gap: .5rem; }
+  .mission {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid transparent;
+    border-radius: 3px;
+    padding: .7rem .8rem;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: var(--ink-2);
+    display: block;
+    width: 100%;
+    transition: border-color .15s, color .15s, background .15s;
+  }
+  .mission:hover { border-color: var(--accent); color: var(--ink); }
+  .mission[aria-current="true"] {
+    border-left-color: var(--accent);
+    background: var(--panel-2);
+    color: var(--ink);
+  }
+  .mission:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .mission .m-name {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: .98rem;
+    letter-spacing: .01em;
+    display: block;
+  }
+  .mission .m-meta {
+    font-family: var(--f-mono);
+    font-size: .68rem;
+    color: var(--muted);
+    letter-spacing: .02em;
+  }
+
+  /* ----------------------------------------------------------- stage */
+  .stage { min-width: 0; }
+  .brief {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: .9rem 1.05rem;
+    margin-bottom: .9rem;
+  }
+  .brief h2 {
+    font-family: var(--f-display);
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0 0 .3rem;
+    text-wrap: balance;
+  }
+  .brief p { margin: 0; color: var(--ink-2); font-size: .93rem; max-width: 72ch; }
+
+  .maps { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+  @media (max-width: 720px) { .maps { grid-template-columns: 1fr; } }
+
+  figure { margin: 0; }
+  figcaption {
+    font-family: var(--f-display);
+    font-size: .68rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: .35rem;
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+    align-items: baseline;
+  }
+  figcaption em {
+    font-family: var(--f-body);
+    font-style: normal;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: .75rem;
+    color: var(--muted);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: var(--map-bg);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+
+  /* ------------------------------------------------------- transport */
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    margin-top: .8rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: .6rem .8rem;
+    flex-wrap: wrap;
+  }
+  button.ctl {
+    font-family: var(--f-display);
+    font-size: .78rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    background: var(--accent-2);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: .38rem .85rem;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button.ctl:hover { background: var(--accent); color: var(--panel); }
+  button.ctl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type="range"] { flex: 1 1 160px; min-width: 120px; accent-color: var(--accent); }
+  .clock {
+    font-family: var(--f-mono);
+    font-size: .85rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .speed {
+    font-family: var(--f-mono);
+    font-size: .75rem;
+    background: var(--panel-2);
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: .3rem .4rem;
+  }
+
+  /* ------------------------------------------------------- telemetry */
+  .telemetry { display: flex; flex-direction: column; gap: .9rem; min-width: 0; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: .85rem .9rem;
+  }
+
+  .verdict {
+    display: flex;
+    align-items: baseline;
+    gap: .6rem;
+    padding-bottom: .55rem;
+    border-bottom: 1px solid var(--line-2);
+    margin-bottom: .6rem;
+  }
+  .verdict .state {
+    font-family: var(--f-display);
+    font-size: 1.65rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    line-height: 1;
+  }
+  .verdict .why { font-size: .8rem; color: var(--muted); }
+  .state.pass { color: var(--pass); }
+  .state.slow { color: var(--slow); }
+  .state.stop { color: var(--stop); }
+
+  dl.readout {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .28rem .6rem;
+    margin: 0;
+    font-family: var(--f-mono);
+    font-size: .8rem;
+    font-variant-numeric: tabular-nums;
+  }
+  dl.readout dt { color: var(--muted); }
+  dl.readout dd { margin: 0; text-align: right; color: var(--ink); }
+  dl.readout dd.warn { color: var(--slow); }
+  dl.readout dd.bad  { color: var(--stop); }
+  .divider {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line-2);
+    margin: .35rem 0 .1rem;
+  }
+  .sub {
+    grid-column: 1 / -1;
+    font-family: var(--f-display);
+    font-size: .64rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: .3rem;
+  }
+
+  .log {
+    font-family: var(--f-mono);
+    font-size: .74rem;
+    max-height: 190px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+  }
+  .log .entry { display: flex; gap: .55rem; align-items: baseline; }
+  .log .stamp { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .log .entry.pass .msg { color: var(--pass); }
+  .log .entry.slow .msg { color: var(--slow); }
+  .log .entry.stop .msg { color: var(--stop); }
+  .log .entry.fault .msg { color: var(--accent); }
+  .log .empty { color: var(--muted); }
+
+  /* ---------------------------------------------------------- legend */
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-top: .7rem; }
+  .key { display: flex; align-items: center; gap: .35rem; font-size: .74rem; color: var(--muted); }
+  .swatch { width: 12px; height: 12px; border-radius: 2px; border: 1px solid rgba(128,128,128,.35); }
+  .ramp {
+    width: 92px; height: 12px; border-radius: 2px;
+    border: 1px solid rgba(128,128,128,.35);
+    background: linear-gradient(90deg,#1d7f8c,#2f9e6b,#8db83c,#e0b53a,#e07a30,#d1435f);
+  }
+
+  /* ------------------------------------------------------- footnote */
+  .honesty {
+    margin-top: 2rem;
+    border-top: 1px solid var(--line);
+    padding-top: 1.25rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: 1.25rem;
+  }
+  .honesty h3 {
+    font-family: var(--f-display);
+    font-size: .74rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    margin: 0 0 .5rem;
+    color: var(--ink);
+  }
+  .honesty ul { margin: 0; padding-left: 1.05rem; color: var(--ink-2); font-size: .87rem; }
+  .honesty li { margin-bottom: .3rem; }
+  .honesty code {
+    font-family: var(--f-mono);
+    font-size: .82em;
+    background: var(--panel-2);
+    border: 1px solid var(--line-2);
+    border-radius: 2px;
+    padding: .05em .3em;
+  }
+  .caveat { border-left: 2px solid var(--slow); padding-left: .8rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">Research prototype &middot; vision-first &middot; GPS-denied</p>
+    <h1>DRISHTI-UGV Mission Console</h1>
+    <p class="standfirst">
+      An unmanned ground vehicle crossing outdoor terrain with <strong>no GPS</strong>,
+      deciding what is drivable from cameras alone. Every frame below was computed by
+      the <strong>same terrain cost function and safety supervisor</strong> that run on
+      the vehicle &mdash; replayed here, not re-created.
+    </p>
+  </header>
+
+  <div class="console">
+    <nav class="missions" id="missions" aria-label="Scenarios"></nav>
+
+    <section class="stage">
+      <div class="brief">
+        <h2 id="brief-title">&nbsp;</h2>
+        <p id="brief-text">&nbsp;</p>
+      </div>
+
+      <div class="maps">
+        <figure>
+          <figcaption>
+            <span>Ground truth</span>
+            <em>the vehicle cannot see this</em>
+          </figcaption>
+          <canvas id="truth" width="704" height="416"></canvas>
+        </figure>
+        <figure>
+          <figcaption>
+            <span>What the vehicle believes</span>
+            <em>cost from what it has observed</em>
+          </figcaption>
+          <canvas id="belief" width="704" height="416"></canvas>
+        </figure>
+      </div>
+
+      <div class="transport">
+        <button class="ctl" id="play" type="button">Pause</button>
+        <button class="ctl" id="restart" type="button">Restart</button>
+        <input type="range" id="scrub" min="0" value="0" step="1" aria-label="Scrub through the run">
+        <span class="clock" id="clock">t = 0.0 s</span>
+        <select class="speed" id="speed" aria-label="Playback speed">
+          <option value="2">0.5&times;</option>
+          <option value="1" selected>1&times;</option>
+          <option value="0.5">2&times;</option>
+          <option value="0.25">4&times;</option>
+        </select>
+      </div>
+
+      <div class="legend">
+        <span class="key"><span class="ramp"></span> cheap &rarr; costly terrain</span>
+        <span class="key"><span class="swatch" style="background:#d1435f"></span> lethal &mdash; never crossed</span>
+        <span class="key"><span class="swatch" style="background:var(--map-unseen)"></span> never observed &mdash; priced at 0.85</span>
+        <span class="key"><span class="swatch" style="background:#35b8c9"></span> planned route</span>
+      </div>
+    </section>
+
+    <aside class="telemetry">
+      <div class="card">
+        <p class="label">Safety supervisor</p>
+        <div class="verdict">
+          <span class="state pass" id="state">PASS</span>
+          <span class="why" id="why">nominal</span>
+        </div>
+        <dl class="readout">
+          <dt>Nav2 asks</dt><dd id="cmd-in">0.00 m/s</dd>
+          <dt>wheels get</dt><dd id="cmd-out">0.00 m/s</dd>
+
+          <div class="sub">Evidence</div>
+          <dt>camera age</dt><dd id="rgb-age">0.00 s</dd>
+          <dt>depth age</dt><dd id="depth-age">0.00 s</dd>
+          <dt>frame unchanged</dt><dd id="static">0.00 s</dd>
+          <dt>confidence</dt><dd id="conf">0.00</dd>
+
+          <div class="sub">Mission</div>
+          <dt>map observed</dt><dd id="obs">0.0 %</dd>
+          <dt>distance to goal</dt><dd id="dist">0.00 m</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <p class="label">Event log</p>
+        <div class="log" id="log"><span class="empty">waiting for the run to start&hellip;</span></div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="honesty">
+    <div>
+      <h3>Real, and proven so</h3>
+      <ul>
+        <li>The traversability cost function &mdash; every term and threshold.</li>
+        <li>The safety supervisor &mdash; all nine stop conditions, in evaluation order.</li>
+        <li>The semantic class vocabulary, imported rather than copied.</li>
+        <li>Only the supervisor's output ever reaches the wheels.</li>
+        <li><code>check_parity.py</code> compares the ported logic against the shipping
+            C++ on <strong>8,000 cases</strong>, including every threshold boundary.
+            They agree exactly.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Stand-ins</h3>
+      <ul>
+        <li>A raycast over a height field, in place of a stereo camera and GPU
+            elevation mapping.</li>
+        <li>A* over the cost grid with an inflation layer, in place of Nav2 and
+            its predictive controller.</li>
+        <li>Terrain classes are read from the map rather than detected by a model.</li>
+      </ul>
+    </div>
+    <div class="caveat">
+      <h3>Not shown &mdash; do not claim it</h3>
+      <ul>
+        <li><strong>Visual SLAM is not modelled.</strong> The vehicle knows exactly
+            where it is. This demonstrates terrain reasoning and the safety gate, not
+            that GPS-denied localisation works &mdash; that needs the full stack and
+            trajectory error measured against ground truth.</li>
+        <li>No physics, no wheel slip, no image formation.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script id="run-data" type="application/json">__RUNS_JSON__</script>
+<script>
+(function () {
+  "use strict";
+
+  var DATA = JSON.parse(document.getElementById("run-data").textContent);
+  var RUNS = DATA.runs;
+
+  var TERRAIN_CLASS = {
+    42: "#5d6570",   // rock
+    43: "#4a3a24",   // tree trunk
+    40: "#05070a",   // ditch
+    30: "#6b4f2a",   // mud
+    31: "#2a4a6b",   // water
+    20: "#6e6a5e",   // gravel
+    12: "#33502f"    // grass
+  };
+
+  // RViz-style costmap ramp: the convention a roboticist reads instantly, and
+  // deliberately distinct from the PASS/SLOW/STOP status colours.
+  var RAMP = [
+    [0.00, [29, 127, 140]],
+    [0.25, [47, 158, 107]],
+    [0.50, [141, 184, 60]],
+    [0.70, [224, 181, 58]],
+    [0.85, [224, 122, 48]],
+    [1.00, [209, 67, 95]]
+  ];
+
+  function rampColour(v) {
+    v = Math.max(0, Math.min(1, v));
+    for (var i = 1; i < RAMP.length; i++) {
+      if (v <= RAMP[i][0]) {
+        var a = RAMP[i - 1], b = RAMP[i];
+        var f = (v - a[0]) / (b[0] - a[0] || 1);
+        return "rgb(" +
+          Math.round(a[1][0] + (b[1][0] - a[1][0]) * f) + "," +
+          Math.round(a[1][1] + (b[1][1] - a[1][1]) * f) + "," +
+          Math.round(a[1][2] + (b[1][2] - a[1][2]) * f) + ")";
+      }
+    }
+    return "rgb(209,67,95)";
+  }
+
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  var truthCv = document.getElementById("truth");
+  var beliefCv = document.getElementById("belief");
+  var tx = truthCv.getContext("2d");
+  var bx = beliefCv.getContext("2d");
+
+  var state = {
+    run: null,
+    frame: 0,
+    playing: true,
+    speed: 1,
+    cost: null,
+    lethal: null,
+    seen: null,
+    trail: [],
+    log: [],
+    lastReason: null,
+    lastFaults: 0,
+    sawLethal: false,
+    truthCache: null
+  };
+
+  // ---------------------------------------------------------------- setup
+  function buildRail() {
+    var rail = document.getElementById("missions");
+    RUNS.forEach(function (run, i) {
+      var b = document.createElement("button");
+      b.className = "mission";
+      b.type = "button";
+      b.setAttribute("aria-current", i === 0 ? "true" : "false");
+      b.innerHTML = '<span class="m-name"></span><span class="m-meta"></span>';
+      b.querySelector(".m-name").textContent = run.title;
+      b.querySelector(".m-meta").textContent =
+        run.world.name + " · " + run.outcome.replace("_", " ");
+      b.addEventListener("click", function () { select(i); });
+      rail.appendChild(b);
+    });
+  }
+
+  function select(index) {
+    var buttons = document.querySelectorAll(".mission");
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute("aria-current", i === index ? "true" : "false");
+    }
+    state.run = RUNS[index];
+    document.getElementById("brief-title").textContent = state.run.headline;
+    document.getElementById("brief-text").textContent = state.run.blurb;
+    document.getElementById("scrub").max = String(state.run.frames.length - 1);
+    sizeCanvases();
+    reset();
+    state.playing = true;
+    document.getElementById("play").textContent = "Pause";
+  }
+
+  function sizeCanvases() {
+    var w = state.run.world;
+    var scale = Math.max(1, Math.round(704 / w.w));
+    [truthCv, beliefCv].forEach(function (c) {
+      c.width = w.w * scale;
+      c.height = w.h * scale;
+    });
+    state.scale = scale;
+    state.truthCache = null;
+  }
+
+  function reset() {
+    var w = state.run.world;
+    state.frame = 0;
+    state.cost = new Float32Array(w.w * w.h).fill(0.85);
+    state.lethal = new Uint8Array(w.w * w.h);
+    state.seen = new Uint8Array(w.w * w.h);
+    state.trail = [];
+    state.log = [];
+    state.lastReason = null;
+    state.lastFaults = 0;
+    state.sawLethal = false;
+    applyUpTo(0);
+    draw();
+  }
+
+  // Rebuild the belief from frame 0. Cheap, and it makes scrubbing backwards
+  // exact rather than approximate -- a cell's cost never changes after it is
+  // first observed, so replaying the reveals reconstructs the state precisely.
+  function applyUpTo(target) {
+    var w = state.run.world;
+    state.cost.fill(0.85);
+    state.lethal.fill(0);
+    state.seen.fill(0);
+    state.trail = [];
+    state.log = [];
+    state.lastReason = null;
+    state.lastFaults = 0;
+    state.sawLethal = false;
+
+    for (var i = 0; i <= target; i++) {
+      var f = state.run.frames[i];
+      for (var k = 0; k < f["new"].length; k++) {
+        var c = f["new"][k];
+        var idx = c[1] * w.w + c[0];
+        state.cost[idx] = c[2];
+        state.lethal[idx] = c[3];
+        state.seen[idx] = 1;
+      }
+      state.trail.push([f.p[0], f.p[1]]);
+      noteEvents(f, i === state.run.frames.length - 1);
+    }
+  }
+
+  function noteEvents(f, isLast) {
+    if (f["new"].some(function (c) { return c[3] === 1; }) && !state.sawLethal) {
+      state.sawLethal = true;
+      state.log.push({ t: f.t, kind: "fault",
+                       msg: "lethal terrain detected — planner must route around it" });
+    }
+    if (f.f.length !== state.lastFaults) {
+      state.log.push({ t: f.t, kind: "fault",
+                       msg: "fault injected — " + f.f.join(", ") });
+      state.lastFaults = f.f.length;
+    }
+    var reason = f.a === 0 ? "" : f.r;
+    var key = f.a + "|" + reason;
+    if (key !== state.lastReason) {
+      var kind = f.a === 2 ? "stop" : (f.a === 1 ? "slow" : "pass");
+      var msg = f.a === 0 ? "driving — command passed through"
+                          : (f.a === 1 ? "slowed — " + f.r
+                                       : "STOPPED — " + f.r);
+      state.log.push({ t: f.t, kind: kind, msg: msg });
+      state.lastReason = key;
+    }
+    if (isLast) {
+      var outcome = state.run.outcome;
+      state.log.push({
+        t: f.t,
+        kind: outcome === "success" ? "pass" : "stop",
+        msg: outcome === "success"
+          ? "goal reached — no collisions"
+          : "mission ended: " + outcome.replace("_", " ")
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------- draw
+  function drawTruth() {
+    var w = state.run.world, s = state.scale;
+    if (!state.truthCache) {
+      var off = document.createElement("canvas");
+      off.width = truthCv.width; off.height = truthCv.height;
+      var o = off.getContext("2d");
+      o.fillStyle = cssVar("--map-bg");
+      o.fillRect(0, 0, off.width, off.height);
+      for (var cy = 0; cy < w.h; cy++) {
+        for (var cx = 0; cx < w.w; cx++) {
+          var cell = w.truth[cy][cx];
+          var colour = TERRAIN_CLASS[cell[1]];
+          if (!colour) {
+            var shade = Math.max(0, Math.min(255, Math.round(96 + cell[0] * 110)));
+            colour = "rgb(" + shade + "," + Math.round(shade * 0.86) + "," +
+                     Math.round(shade * 0.62) + ")";
+          }
+          o.fillStyle = colour;
+          o.fillRect(cx * s, cy * s, s, s);
+        }
+      }
+      state.truthCache = off;
+    }
+    tx.drawImage(state.truthCache, 0, 0);
+  }
+
+  function drawBelief() {
+    var w = state.run.world, s = state.scale;
+    bx.fillStyle = cssVar("--map-bg");
+    bx.fillRect(0, 0, beliefCv.width, beliefCv.height);
+    var unseen = cssVar("--map-unseen");
+    for (var cy = 0; cy < w.h; cy++) {
+      for (var cx = 0; cx < w.w; cx++) {
+        var idx = cy * w.w + cx;
+        bx.fillStyle = state.seen[idx]
+          ? (state.lethal[idx] ? "#d1435f" : rampColour(state.cost[idx]))
+          : unseen;
+        bx.fillRect(cx * s, cy * s, s, s);
+      }
+    }
+  }
+
+  function overlay(ctx, withPath) {
+    var w = state.run.world, s = state.scale;
+    var f = state.run.frames[state.frame];
+    var px = function (v) { return (v / w.res) * s; };
+
+    if (withPath && f.pathCache) {
+      ctx.strokeStyle = cssVar("--accent");
+      ctx.lineWidth = Math.max(1.5, s * 0.28);
+      ctx.beginPath();
+      f.pathCache.forEach(function (p, i) {
+        if (i === 0) ctx.moveTo(px(p[0]), px(p[1]));
+        else ctx.lineTo(px(p[0]), px(p[1]));
+      });
+      ctx.stroke();
+    }
+
+    if (state.trail.length > 1) {
+      ctx.strokeStyle = "rgba(150,190,225,.75)";
+      ctx.lineWidth = Math.max(1, s * 0.16);
+      ctx.setLineDash([s * 0.6, s * 0.6]);
+      ctx.beginPath();
+      state.trail.forEach(function (p, i) {
+        if (i === 0) ctx.moveTo(px(p[0]), px(p[1]));
+        else ctx.lineTo(px(p[0]), px(p[1]));
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    var g = w.goal;
+    ctx.strokeStyle = "#4ade80";
+    ctx.lineWidth = Math.max(1.5, s * 0.25);
+    ctx.beginPath();
+    ctx.arc(px(g[0]), px(g[1]), s * 1.5, 0, Math.PI * 2);
+    ctx.stroke();
+
+    var x = f.p[0], y = f.p[1], th = f.p[2];
+    ctx.fillStyle = "rgba(255,255,255,.10)";
+    ctx.beginPath();
+    ctx.moveTo(px(x), px(y));
+    ctx.arc(px(x), px(y), px(4.5), th - 0.698, th + 0.698);
+    ctx.closePath();
+    ctx.fill();
+
+    var body = f.a === 2 ? "#f87171" : (f.a === 1 ? "#fbbf24" : "#4ade80");
+    var n = s * 2.0;
+    ctx.fillStyle = body;
+    ctx.strokeStyle = "rgba(0,0,0,.55)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px(x) + n * Math.cos(th), px(y) + n * Math.sin(th));
+    ctx.lineTo(px(x) + n * 0.72 * Math.cos(th + 2.4), px(y) + n * 0.72 * Math.sin(th + 2.4));
+    ctx.lineTo(px(x) + n * 0.72 * Math.cos(th - 2.4), px(y) + n * 0.72 * Math.sin(th - 2.4));
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function draw() {
+    // The path is only recorded every third frame; carry the last one forward
+    // so the route does not flicker.
+    var frames = state.run.frames;
+    for (var i = state.frame; i >= 0; i--) {
+      if (frames[i].path) { frames[state.frame].pathCache = frames[i].path; break; }
+    }
+    drawTruth();
+    drawBelief();
+    overlay(tx, false);
+    overlay(bx, true);
+    readout();
+  }
+
+  function setText(id, text, cls) {
+    var el = document.getElementById(id);
+    el.textContent = text;
+    el.className = cls || "";
+  }
+
+  function readout() {
+    var f = state.run.frames[state.frame];
+    var names = ["PASS", "SLOW", "STOP"];
+    var classes = ["pass", "slow", "stop"];
+    var stateEl = document.getElementById("state");
+    stateEl.textContent = names[f.a];
+    stateEl.className = "state " + classes[f.a];
+    document.getElementById("why").textContent = f.a === 0 ? "command passed through" : f.r;
+
+    setText("cmd-in", f.ci[0].toFixed(2) + " m/s");
+    setText("cmd-out", f.co[0].toFixed(2) + " m/s", f.co[0] === 0 && f.ci[0] > 0 ? "bad" : "");
+    setText("rgb-age", f.ra.toFixed(2) + " s", f.ra > 0.3 ? "bad" : "");
+    setText("depth-age", f.da.toFixed(2) + " s", f.da > 0.3 ? "bad" : "");
+    setText("static", f.sf.toFixed(2) + " s", f.sf >= 2 ? "bad" : (f.sf > 0.5 ? "warn" : ""));
+    setText("conf", f.cf.toFixed(2), f.cf < 0.4 ? "warn" : "");
+    setText("obs", (f.ob * 100).toFixed(1) + " %");
+    setText("dist", f.dg.toFixed(2) + " m");
+
+    document.getElementById("clock").textContent =
+      "t = " + f.t.toFixed(1) + " s";
+    document.getElementById("scrub").value = String(state.frame);
+
+    var log = document.getElementById("log");
+    if (!state.log.length) {
+      log.innerHTML = '<span class="empty">waiting for the run to start…</span>';
+    } else {
+      log.innerHTML = "";
+      state.log.slice(-14).forEach(function (e) {
+        var row = document.createElement("div");
+        row.className = "entry " + e.kind;
+        var stamp = document.createElement("span");
+        stamp.className = "stamp";
+        stamp.textContent = e.t.toFixed(1) + "s";
+        var msg = document.createElement("span");
+        msg.className = "msg";
+        msg.textContent = e.msg;
+        row.appendChild(stamp);
+        row.appendChild(msg);
+        log.appendChild(row);
+      });
+      log.scrollTop = log.scrollHeight;
+    }
+  }
+
+  // --------------------------------------------------------------- loop
+  var accumulator = 0, last = 0;
+  function tick(now) {
+    if (!last) last = now;
+    var dt = now - last;
+    last = now;
+    if (state.playing) {
+      accumulator += dt;
+      var frameMs = 100 * state.speed;   // the simulation ran at 10 Hz
+      while (accumulator >= frameMs) {
+        accumulator -= frameMs;
+        advance();
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function advance() {
+    if (state.frame >= state.run.frames.length - 1) {
+      state.playing = false;
+      document.getElementById("play").textContent = "Replay";
+      return;
+    }
+    state.frame++;
+    var w = state.run.world;
+    var f = state.run.frames[state.frame];
+    for (var k = 0; k < f["new"].length; k++) {
+      var c = f["new"][k];
+      var idx = c[1] * w.w + c[0];
+      state.cost[idx] = c[2];
+      state.lethal[idx] = c[3];
+      state.seen[idx] = 1;
+    }
+    state.trail.push([f.p[0], f.p[1]]);
+    noteEvents(f, state.frame === state.run.frames.length - 1);
+    draw();
+  }
+
+  // ------------------------------------------------------------ controls
+  document.getElementById("play").addEventListener("click", function () {
+    if (state.frame >= state.run.frames.length - 1) { reset(); }
+    state.playing = !state.playing;
+    this.textContent = state.playing ? "Pause" : "Play";
+  });
+  document.getElementById("restart").addEventListener("click", function () {
+    reset();
+    state.playing = true;
+    document.getElementById("play").textContent = "Pause";
+  });
+  document.getElementById("scrub").addEventListener("input", function () {
+    state.playing = false;
+    document.getElementById("play").textContent = "Play";
+    state.frame = parseInt(this.value, 10);
+    applyUpTo(state.frame);
+    draw();
+  });
+  document.getElementById("speed").addEventListener("change", function () {
+    state.speed = parseFloat(this.value);
+  });
+
+  buildRail();
+  select(0);
+  requestAnimationFrame(tick);
+})();
+</script>

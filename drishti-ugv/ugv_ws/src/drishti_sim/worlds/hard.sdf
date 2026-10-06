@@ -1,0 +1,280 @@
+<?xml version="1.0" ?>
+<!--
+  EVALUATION.md world "Hard": unstructured outdoor. Ditches, dense rocks,
+  narrow corridors and a steep slope. Scenarios T03, T07 and the geometry half
+  of T14.
+
+  THE DITCH IS THE POINT OF THIS WORLD.
+
+  A ditch is a NEGATIVE obstacle, and it is the failure case that separates a
+  terrain-aware stack from an occupancy grid. Nothing sticks up, so a
+  conventional obstacle layer sees free space and drives in. It has to be
+  refused on geometry alone — step height against the wheel radius — with no
+  semantic model in the loop (TASK.md Phase 3).
+
+  You cannot dig a hole in a ground plane, so the drivable surface here is a
+  raised platform split by a gap. The gap floor is the world ground plane
+  0.45 m below, which is 4.5x the 0.10 m wheel radius: unambiguously lethal
+  under the SPEC.md 6.1 step_lethal threshold of 0.25 m.
+
+  SPAWN ON THE PLATFORM, NOT THE GROUND:
+      ros2 launch drishti_sim sim.launch.py world:=hard.sdf z:=0.60
+  Spawning at the default z drops the vehicle into the pit at the start, which
+  looks like a catastrophic failure and is only a launch argument.
+
+  !! UNVERIFIED !! Never loaded by Gazebo. XML structure only.
+-->
+<sdf version="1.9">
+  <world name="hard">
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-imu-system"
+            name="gz::sim::systems::Imu"/>
+    <plugin filename="gz-sim-contact-system"
+            name="gz::sim::systems::Contact"/>
+
+    <gravity>0 0 -9.8</gravity>
+    <magnetic_field>5.565e-6 2.289e-5 -4.239e-5</magnetic_field>
+
+    <scene>
+      <ambient>0.45 0.45 0.45 1</ambient>
+      <background>0.66 0.72 0.80 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 12 0 0 0</pose>
+      <diffuse>0.85 0.83 0.78 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.6 0.4 -0.7</direction>
+    </light>
+
+    <!-- Pit floor, 0.45 m below the driving surface. -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>160 160</size></plane></geometry>
+          <surface>
+            <friction><ode><mu>0.7</mu><mu2>0.7</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>160 160</size></plane></geometry>
+          <material>
+            <ambient>0.18 0.15 0.11 1</ambient>
+            <diffuse>0.26 0.22 0.16 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ======================================= driving platform ==== -->
+    <!--
+      Approach side: spawn at (0, 0, 0.60) and drive +x. The platform top sits
+      at z = 0.45.
+    -->
+    <model name="platform_near">
+      <static>true</static>
+      <pose>4.0 0.0 0.225 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>14.0 20.0 0.45</size></box></geometry>
+          <surface><friction><ode><mu>0.9</mu><mu2>0.9</mu2></ode></friction></surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>14.0 20.0 0.45</size></box></geometry>
+          <material>
+            <ambient>0.38 0.32 0.22 1</ambient>
+            <diffuse>0.50 0.42 0.28 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!--
+      T07. The gap between the two platforms runs from x = 11.0 to x = 12.6:
+      1.6 m wide, 0.45 m deep. Wider than the 0.6 m wheelbase, so it cannot be
+      bridged, and directly across the straight line to the goal. The planner
+      must go around via the intact ground at |y| > 4, not across.
+    -->
+    <model name="platform_far">
+      <static>true</static>
+      <pose>19.3 0.0 0.225 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>13.4 20.0 0.45</size></box></geometry>
+          <surface><friction><ode><mu>0.9</mu><mu2>0.9</mu2></ode></friction></surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>13.4 20.0 0.45</size></box></geometry>
+          <material>
+            <ambient>0.38 0.32 0.22 1</ambient>
+            <diffuse>0.50 0.42 0.28 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!--
+      The detour. A neck of intact ground joining the two platforms off to one
+      side, so the mission is possible without crossing the ditch. Without this
+      the correct behaviour would be to stop, and the run would score as a
+      planner failure rather than as successful avoidance — which would make
+      T07 untestable.
+    -->
+    <model name="ditch_bridge_flank">
+      <static>true</static>
+      <pose>11.8 7.5 0.225 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>2.4 5.0 0.45</size></box></geometry>
+          <surface><friction><ode><mu>0.9</mu><mu2>0.9</mu2></ode></friction></surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>2.4 5.0 0.45</size></box></geometry>
+          <material>
+            <ambient>0.36 0.30 0.21 1</ambient>
+            <diffuse>0.48 0.40 0.27 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ============================================ dense rocks ==== -->
+    <!-- T03: obstacle avoidance where the gaps are tight but passable. -->
+    <model name="rock_field_1">
+      <static>true</static>
+      <pose>3.0 0.9 0.72 0 0 0.4</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><sphere><radius>0.34</radius></sphere></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><sphere><radius>0.34</radius></sphere></geometry>
+          <material><diffuse>0.36 0.35 0.33 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="rock_field_2">
+      <static>true</static>
+      <pose>4.2 -0.8 0.70 0 0 1.2</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><sphere><radius>0.30</radius></sphere></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><sphere><radius>0.30</radius></sphere></geometry>
+          <material><diffuse>0.34 0.33 0.31 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="rock_field_3">
+      <static>true</static>
+      <pose>5.6 1.4 0.74 0 0 2.1</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.6 0.5 0.58</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.6 0.5 0.58</size></box></geometry>
+          <material><diffuse>0.32 0.31 0.29 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="rock_field_4">
+      <static>true</static>
+      <pose>6.4 -1.6 0.71 0 0 0.9</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><sphere><radius>0.32</radius></sphere></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><sphere><radius>0.32</radius></sphere></geometry>
+          <material><diffuse>0.35 0.34 0.32 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ======================================= narrow corridor ==== -->
+    <!--
+      Walls 1.4 m apart against a 0.4 m wide vehicle: passable, but only if the
+      costmap inflation radius is honest. A stack that inflates 0.55 m from
+      both walls leaves a 0.3 m channel and will refuse — which is the correct
+      conservative answer, and worth seeing rather than tuning away.
+    -->
+    <model name="corridor_wall_left">
+      <static>true</static>
+      <pose>24.0 0.7 0.90 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>5.0 0.3 0.9</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>5.0 0.3 0.9</size></box></geometry>
+          <material><diffuse>0.42 0.40 0.36 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="corridor_wall_right">
+      <static>true</static>
+      <pose>24.0 -0.7 0.90 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>5.0 0.3 0.9</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>5.0 0.3 0.9</size></box></geometry>
+          <material><diffuse>0.42 0.40 0.36 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ============================================ steep slope ==== -->
+    <!--
+      About 31 degrees, just past the 30 degree slope_lethal threshold in
+      SPEC.md 6.1. It must be refused, and refusing it is the test: a stack
+      that drives it is not being brave, it is failing to measure slope.
+    -->
+    <model name="steep_ramp">
+      <static>true</static>
+      <pose>28.5 3.5 0.55 0 -0.55 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>4.0 3.0 0.3</size></box></geometry>
+          <surface><friction><ode><mu>0.9</mu><mu2>0.9</mu2></ode></friction></surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>4.0 3.0 0.3</size></box></geometry>
+          <material><diffuse>0.44 0.38 0.26 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

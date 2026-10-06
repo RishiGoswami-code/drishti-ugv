@@ -1,0 +1,78 @@
+# DRISHTI-UGV — shared parameters
+#
+# One file, loaded by every node in the stack. Thresholds are logged at startup
+# with the run so a result can be traced back to the configuration that
+# produced it (SPEC.md section 9.3).
+#
+# ---------------------------------------------------------------------------
+# THE NUMBERS BELOW ARE INITIAL DEFAULTS, NOT TUNED VALUES.
+# SPEC.md section 9.3 fixes the parameter *names* and meanings; it does not
+# fix the values. Phase 5 (TASK.md) tunes them against the randomised suite
+# and EVALUATION.md records what they were changed to and why.
+# ---------------------------------------------------------------------------
+
+# Global clock. SPEC.md section 3.2 rule 4: a single node on the wrong clock
+# corrupts the map. Set false only for a real-hardware run.
+/**:
+  ros__parameters:
+    use_sim_time: true
+
+safety_supervisor:
+  ros__parameters:
+    use_sim_time: true
+
+    # --- staleness limits ------------------------------------------------
+    # Absence of evidence is not evidence of safety (SPEC.md section 9.4.2).
+    # Sized for a 30 Hz camera: roughly nine missed frames.
+    t_camera_stale: 0.30        # s, max age of an RGB frame
+    t_depth_stale: 0.30         # s, max age of a depth frame
+
+    # --- emergency geometry ----------------------------------------------
+    d_emergency: 0.80           # m, lethal obstacle distance -> immediate stop
+
+    # --- perception trust -------------------------------------------------
+    c_critical: 0.40            # 0..1 confidence floor for full speed
+
+    # --- speed limits -----------------------------------------------------
+    v_max: 1.20                 # m/s normal ceiling
+    v_slow: 0.35                # m/s reduced ceiling under low confidence
+
+    # --- localisation health ----------------------------------------------
+    cov_max: 0.50               # largest pose covariance diagonal before "lost"
+
+    # --- frozen camera (SPEC.md §9.3 addition, D19) -----------------------
+    # Liveness is not enough. A camera republishing one image with a fresh
+    # timestamp keeps rgb_age small forever while the view of the world grows
+    # arbitrarily old, and t_camera_stale cannot see it (D18).
+    #
+    # Much longer than t_camera_stale on purpose: a motionless vehicle looking
+    # at a static scene through a noiseless simulated camera produces identical
+    # frames, so a short threshold would fire constantly in simulation. A
+    # spurious trip here produces a STOP, which is the safe direction.
+    t_frame_static: 2.00        # s of unchanging RGB content before STOP
+
+    # --- input staleness (SPEC.md §9.3 additions, D13) --------------------
+    # SPEC.md §9.3 names thresholds for the camera and depth streams but not
+    # for the other three inputs the supervisor depends on. Without these a
+    # dead planner or a silent Nav2 would leave the supervisor forwarding a
+    # stale command forever, which breaks invariant 9.4.2.
+    t_pose_stale: 0.50          # s, max age of a localisation pose
+    t_plan_stale: 2.00          # s, max age of a /plan before it is unusable
+    t_cmd_stale: 0.50           # s, max age of a Nav2 command before STOP
+
+    # --- supervisor tick --------------------------------------------------
+    # Bounds the emergency-stop path. SPEC.md section 8 budgets < 200 ms
+    # (prototype) and < 100 ms (stretch); 50 Hz leaves margin for the
+    # detection and publish legs.
+    watchdog_period: 0.02       # s
+
+    # --- interface contract ------------------------------------------------
+    # SPEC.md section 4.3: Nav2 publishes to cmd_vel_in and must never be able
+    # to reach the base directly. The supervisor owns cmd_vel_out.
+    cmd_vel_in: /cmd_vel_nav
+    cmd_vel_out: /cmd_vel
+
+    # Nav2 supports Twist or TwistStamped depending on version and config.
+    # Pin this once against the Nav2 actually installed, then keep it
+    # identical across Nav2, the supervisor and the base. Do not assume.
+    use_twist_stamped: false

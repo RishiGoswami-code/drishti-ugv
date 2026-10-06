@@ -1,0 +1,287 @@
+<?xml version="1.0"?>
+<!--
+  DRISHTI-UGV robot description.
+
+  A four-wheel skid-steer platform with a forward stereo pair and an IMU.
+  Deliberately modest: this exists to exercise the SPEC.md section 4 interface
+  contract, not to model a specific vehicle. Dimensions are Husky-ish so that
+  the eventual hardware transfer is not a shock.
+
+  FRAME CONTRACT, SPEC.md section 3.1. The tree below base_link must be
+  exactly:
+
+      base_link
+       |&#45;&#45; camera_link
+       |     |&#45;&#45; camera_left_optical
+       |     '&#45;&#45; camera_right_optical
+       '&#45;&#45; imu_link
+
+  and every wheel. tools/check_robot_description.py enforces this, including
+  the optical-frame rotation, so a rename here fails a check rather than
+  silently corrupting the map three phases later.
+
+  Ownership (SPEC.md 3.2 rule 1, nothing publishes a transform it does not own):
+    map to odom          RTAB-Map            (Phase 2; absent until then)
+    odom to base_link    Gazebo DiffDrive    (tf_topic, bridged to /tf)
+    base_link to rest    robot_state_publisher from this file
+  No edge has two publishers.
+
+  !! UNVERIFIED !! Never loaded by xacro, Gazebo or robot_state_publisher.
+  No machine on the project has ROS 2 (STATUS.md). XML structure, the frame
+  tree, joint topology, inertias and the optical rotation ARE checked by
+  tools/check_robot_description.py.
+-->
+<robot name="drishti" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ==================================================== dimensions ==== -->
+  <xacro:property name="base_length" value="0.600"/>
+  <xacro:property name="base_width"  value="0.400"/>
+  <xacro:property name="base_height" value="0.200"/>
+  <xacro:property name="base_mass"   value="20.0"/>
+
+  <xacro:property name="wheel_radius"     value="0.100"/>
+  <xacro:property name="wheel_width"      value="0.060"/>
+  <xacro:property name="wheel_mass"       value="1.500"/>
+  <xacro:property name="wheel_separation" value="0.440"/>
+  <xacro:property name="wheel_base"       value="0.400"/>
+  <!-- Drop the axle below the body so the hull sits ~0.10 m off the ground. -->
+  <xacro:property name="wheel_z"          value="-0.050"/>
+
+  <xacro:property name="camera_x"        value="0.280"/>
+  <xacro:property name="camera_z"        value="0.180"/>
+  <xacro:property name="stereo_baseline" value="0.120"/>
+
+  <xacro:property name="imu_z" value="0.050"/>
+
+  <xacro:property name="PI"      value="3.14159265359"/>
+  <xacro:property name="HALF_PI" value="1.57079632679"/>
+
+  <!-- ========================================================= macros ==== -->
+  <xacro:macro name="box_inertia" params="m x y z">
+    <inertial>
+      <mass value="${m}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+        ixx="${m * (y*y + z*z) / 12.0}" ixy="0.0" ixz="0.0"
+        iyy="${m * (x*x + z*z) / 12.0}" iyz="0.0"
+        izz="${m * (x*x + y*y) / 12.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- Cylinder lying along its own Y axis, as the wheels are mounted. -->
+  <xacro:macro name="wheel_inertia" params="m r w">
+    <inertial>
+      <mass value="${m}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia
+        ixx="${m * (3.0*r*r + w*w) / 12.0}" ixy="0.0" ixz="0.0"
+        iyy="${m * r * r / 2.0}"            iyz="0.0"
+        izz="${m * (3.0*r*r + w*w) / 12.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="wheel" params="name x y">
+    <link name="${name}_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${HALF_PI} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        <material name="wheel_black"><color rgba="0.12 0.12 0.12 1.0"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${HALF_PI} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </collision>
+      <xacro:wheel_inertia m="${wheel_mass}" r="${wheel_radius}" w="${wheel_width}"/>
+    </link>
+
+    <joint name="${name}_joint" type="continuous">
+      <parent link="base_link"/>
+      <child  link="${name}_link"/>
+      <origin xyz="${x} ${y} ${wheel_z}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+
+    <gazebo reference="${name}_link">
+      <mu1>1.0</mu1>
+      <mu2>1.0</mu2>
+      <kp>1000000.0</kp>
+      <kd>10.0</kd>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- =========================================================== body ==== -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${base_length} ${base_width} ${base_height}"/></geometry>
+      <material name="hull"><color rgba="0.25 0.32 0.40 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${base_length} ${base_width} ${base_height}"/></geometry>
+    </collision>
+    <xacro:box_inertia m="${base_mass}" x="${base_length}" y="${base_width}" z="${base_height}"/>
+  </link>
+
+  <xacro:wheel name="wheel_left_front"  x="${ wheel_base/2}" y="${ wheel_separation/2}"/>
+  <xacro:wheel name="wheel_left_rear"   x="${-wheel_base/2}" y="${ wheel_separation/2}"/>
+  <xacro:wheel name="wheel_right_front" x="${ wheel_base/2}" y="${-wheel_separation/2}"/>
+  <xacro:wheel name="wheel_right_rear"  x="${-wheel_base/2}" y="${-wheel_separation/2}"/>
+
+  <!-- ========================================================= sensors ==== -->
+  <!-- Mounting frame: ROS body convention, x forward, y left, z up. -->
+  <link name="camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.03 ${stereo_baseline + 0.04} 0.03"/></geometry>
+      <material name="sensor_grey"><color rgba="0.85 0.85 0.85 1.0"/></material>
+    </visual>
+    <xacro:box_inertia m="0.2" x="0.03" y="${stereo_baseline + 0.04}" z="0.03"/>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="camera_link"/>
+    <origin xyz="${camera_x} 0 ${camera_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!--
+    Optical frames. SPEC.md 3.2 rule 2: z forward, x right, y down, and
+    distinct from the mounting frame. rpy = (-pi/2, 0, -pi/2) is the standard
+    ROS body-to-optical rotation; the checker asserts exactly this.
+  -->
+  <link name="camera_left_optical"/>
+  <joint name="camera_left_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child  link="camera_left_optical"/>
+    <origin xyz="0 ${ stereo_baseline/2} 0" rpy="${-HALF_PI} 0 ${-HALF_PI}"/>
+  </joint>
+
+  <link name="camera_right_optical"/>
+  <joint name="camera_right_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child  link="camera_right_optical"/>
+    <origin xyz="0 ${-stereo_baseline/2} 0" rpy="${-HALF_PI} 0 ${-HALF_PI}"/>
+  </joint>
+
+  <link name="imu_link">
+    <xacro:box_inertia m="0.05" x="0.02" y="0.02" z="0.01"/>
+  </link>
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="imu_link"/>
+    <origin xyz="0 0 ${imu_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ================================================ gazebo sensors ==== -->
+  <!--
+    Sensor <topic> values are gz transport topics. ros_gz_bridge maps them onto
+    the SPEC.md 4.1 ROS names; see drishti_sim/config/bridge.yaml. The
+    gz_frame_id must match the optical frame, not the mounting frame, or every
+    projected point lands rotated by 90 degrees.
+  -->
+  <gazebo reference="camera_link">
+    <sensor name="camera_left" type="camera">
+      <pose relative_to="camera_left_optical">0 0 0 0 0 0</pose>
+      <topic>camera/left</topic>
+      <gz_frame_id>camera_left_optical</gz_frame_id>
+      <update_rate>30</update_rate>
+      <always_on>1</always_on>
+      <camera>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+        <clip><near>0.05</near><far>60.0</far></clip>
+        <noise><type>gaussian</type><mean>0.0</mean><stddev>0.005</stddev></noise>
+      </camera>
+    </sensor>
+
+    <sensor name="camera_right" type="camera">
+      <pose relative_to="camera_right_optical">0 0 0 0 0 0</pose>
+      <topic>camera/right</topic>
+      <gz_frame_id>camera_right_optical</gz_frame_id>
+      <update_rate>30</update_rate>
+      <always_on>1</always_on>
+      <camera>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+        <clip><near>0.05</near><far>60.0</far></clip>
+        <noise><type>gaussian</type><mean>0.0</mean><stddev>0.005</stddev></noise>
+      </camera>
+    </sensor>
+
+    <!--
+      Depth is co-located with the LEFT camera on purpose: RTAB-Map and the
+      elevation pipeline both assume depth is registered to the left frame.
+      Phase 3 will revisit whether to use this or a real stereo disparity.
+    -->
+    <sensor name="camera_depth" type="depth_camera">
+      <pose relative_to="camera_left_optical">0 0 0 0 0 0</pose>
+      <topic>camera/depth</topic>
+      <gz_frame_id>camera_left_optical</gz_frame_id>
+      <update_rate>30</update_rate>
+      <always_on>1</always_on>
+      <camera>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image><width>640</width><height>480</height><format>R_FLOAT32</format></image>
+        <clip><near>0.10</near><far>20.0</far></clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <topic>imu</topic>
+      <gz_frame_id>imu_link</gz_frame_id>
+      <update_rate>100</update_rate>
+      <always_on>1</always_on>
+    </sensor>
+  </gazebo>
+
+  <!-- ================================================ gazebo systems ==== -->
+  <gazebo>
+    <!--
+      Skid steer driven as a differential pair. odom -> base_link is published
+      here and NOWHERE else. Nav2 must reach /cmd_vel_nav, never this topic:
+      the safety supervisor is the only publisher on /cmd_vel (SPEC.md 4.3).
+    -->
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>wheel_left_front_joint</left_joint>
+      <left_joint>wheel_left_rear_joint</left_joint>
+      <right_joint>wheel_right_front_joint</right_joint>
+      <right_joint>wheel_right_rear_joint</right_joint>
+      <wheel_separation>${wheel_separation}</wheel_separation>
+      <wheel_radius>${wheel_radius}</wheel_radius>
+      <max_linear_acceleration>1.5</max_linear_acceleration>
+      <topic>cmd_vel</topic>
+      <odom_topic>odom</odom_topic>
+      <tf_topic>tf</tf_topic>
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_link</child_frame_id>
+      <odom_publish_frequency>50</odom_publish_frequency>
+    </plugin>
+
+    <plugin filename="gz-sim-joint-state-publisher-system"
+            name="gz::sim::systems::JointStatePublisher">
+      <topic>joint_states</topic>
+      <joint_name>wheel_left_front_joint</joint_name>
+      <joint_name>wheel_left_rear_joint</joint_name>
+      <joint_name>wheel_right_front_joint</joint_name>
+      <joint_name>wheel_right_rear_joint</joint_name>
+    </plugin>
+
+    <!--
+      Ground truth for evaluation only. SPEC.md forbids this pose from entering
+      the runtime graph; drishti_eval reads it from the bag alongside the
+      estimate, and nothing subscribes to it at run time.
+    -->
+    <plugin filename="gz-sim-odometry-publisher-system"
+            name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>world</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <odom_topic>ground_truth/pose</odom_topic>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <dimensions>3</dimensions>
+    </plugin>
+  </gazebo>
+
+</robot>

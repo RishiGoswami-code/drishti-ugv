@@ -1,0 +1,288 @@
+<?xml version="1.0" ?>
+<!--
+  EVALUATION.md world "Medium": terrain reasoning. Grass, uneven ground, gentle
+  slopes and tree trunks. Scenarios T04, T05, T06.
+
+  What makes this harder than Easy, and why each thing is here:
+
+    slopes        geometry the planner must reason about rather than treat as
+                  flat free space (T05, T06)
+    roughness     small height variance, which is what the Phase 3
+                  traversability layer is supposed to price
+    tree trunks   vertical obstacles at camera height; also strong visual
+                  features, so SLAM should do BETTER here than on Easy
+    ground clutter texture for stereo matching
+
+  Still deliberately absent: ditches and negative obstacles (Hard, T07), mud
+  and water (T08, T09), moving obstacles (Dynamic), adversarial lighting
+  (T10, T11). Do not add them here — a world that quietly becomes the Hard
+  world stops being a comparison point.
+
+  !! UNVERIFIED !! Never loaded by Gazebo. XML structure only.
+-->
+<sdf version="1.9">
+  <world name="medium">
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-imu-system"
+            name="gz::sim::systems::Imu"/>
+    <plugin filename="gz-sim-contact-system"
+            name="gz::sim::systems::Contact"/>
+
+    <gravity>0 0 -9.8</gravity>
+    <magnetic_field>5.565e-6 2.289e-5 -4.239e-5</magnetic_field>
+
+    <scene>
+      <ambient>0.5 0.5 0.5 1</ambient>
+      <background>0.70 0.78 0.88 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <!-- Lower sun than Easy: longer shadows, more contrast, but still not the
+         adversarial case. -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 12 0 0 0</pose>
+      <diffuse>0.88 0.86 0.80 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.7 0.45 -0.55</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>160 160</size></plane></geometry>
+          <surface>
+            <friction><ode><mu>0.75</mu><mu2>0.75</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>160 160</size></plane></geometry>
+          <material>
+            <ambient>0.22 0.30 0.16 1</ambient>
+            <diffuse>0.30 0.42 0.20 1</diffuse>
+            <specular>0.01 0.01 0.01 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ================================================== slopes ==== -->
+    <!--
+      T05 positive slope: a ramp the vehicle can climb. About 9 degrees, well
+      inside what a skid-steer handles, so failure here means the traversability
+      layer is wrong rather than the platform being incapable.
+    -->
+    <model name="ramp_up">
+      <static>true</static>
+      <pose>9.0 0.0 0.0 0 -0.16 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>6.0 4.0 0.3</size></box></geometry>
+          <surface><friction><ode><mu>0.85</mu><mu2>0.85</mu2></ode></friction></surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>6.0 4.0 0.3</size></box></geometry>
+          <material>
+            <ambient>0.26 0.32 0.18 1</ambient>
+            <diffuse>0.34 0.44 0.22 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- T06 negative slope: the descent on the far side. -->
+    <model name="ramp_down">
+      <static>true</static>
+      <pose>15.0 0.0 0.0 0 0.16 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>6.0 4.0 0.3</size></box></geometry>
+          <surface><friction><ode><mu>0.85</mu><mu2>0.85</mu2></ode></friction></surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>6.0 4.0 0.3</size></box></geometry>
+          <material>
+            <ambient>0.26 0.32 0.18 1</ambient>
+            <diffuse>0.34 0.44 0.22 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ============================================== roughness ==== -->
+    <!--
+      Low scattered humps. Individually harmless; collectively they are the
+      height variance the Phase 3 cost function is meant to notice and slow
+      for, rather than treat as free space.
+    -->
+    <model name="hump_a">
+      <static>true</static>
+      <pose>4.0 1.2 -0.06 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><diffuse>0.32 0.40 0.20 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="hump_b">
+      <static>true</static>
+      <pose>5.5 -1.0 -0.07 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><sphere><radius>0.20</radius></sphere></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><sphere><radius>0.20</radius></sphere></geometry>
+          <material><diffuse>0.32 0.40 0.20 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="hump_c">
+      <static>true</static>
+      <pose>6.8 0.6 -0.06 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><sphere><radius>0.24</radius></sphere></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><sphere><radius>0.24</radius></sphere></geometry>
+          <material><diffuse>0.32 0.40 0.20 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ================================================== trees ==== -->
+    <!--
+      T04 semantic obstacles. Trunks are lethal in the SPEC.md 5.2 taxonomy:
+      geometry alone should stop the vehicle, before any semantic model exists.
+      Placed to form a loose corridor, which also gives Phase 2 a route worth
+      revisiting for loop closure.
+    -->
+    <model name="tree_1">
+      <static>true</static>
+      <pose>7.0 3.4 1.2 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.18</radius><length>2.4</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.18</radius><length>2.4</length></cylinder></geometry>
+          <material>
+            <ambient>0.22 0.16 0.10 1</ambient>
+            <diffuse>0.34 0.24 0.15 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="tree_2">
+      <static>true</static>
+      <pose>11.5 -3.1 1.2 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.22</radius><length>2.4</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.22</radius><length>2.4</length></cylinder></geometry>
+          <material>
+            <ambient>0.22 0.16 0.10 1</ambient>
+            <diffuse>0.34 0.24 0.15 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="tree_3">
+      <static>true</static>
+      <pose>16.5 3.8 1.2 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.20</radius><length>2.4</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.20</radius><length>2.4</length></cylinder></geometry>
+          <material>
+            <ambient>0.22 0.16 0.10 1</ambient>
+            <diffuse>0.34 0.24 0.15 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="tree_4">
+      <static>true</static>
+      <pose>20.0 -2.4 1.2 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.19</radius><length>2.4</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.19</radius><length>2.4</length></cylinder></geometry>
+          <material>
+            <ambient>0.22 0.16 0.10 1</ambient>
+            <diffuse>0.34 0.24 0.15 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Ground clutter: stereo texture, and a reason for the elevation map to
+         have something to say on otherwise open ground. -->
+    <model name="clutter_a">
+      <static>true</static>
+      <pose>10.0 2.0 0.04 0 0 0.6</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>1.6 1.2 0.08</size></box></geometry>
+          <material><diffuse>0.28 0.34 0.18 1</diffuse></material>
+        </visual>
+        <collision name="collision">
+          <geometry><box><size>1.6 1.2 0.08</size></box></geometry>
+        </collision>
+      </link>
+    </model>
+
+    <model name="clutter_b">
+      <static>true</static>
+      <pose>18.0 1.0 0.04 0 0 -0.4</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>2.0 1.4 0.08</size></box></geometry>
+          <material><diffuse>0.26 0.33 0.17 1</diffuse></material>
+        </visual>
+        <collision name="collision">
+          <geometry><box><size>2.0 1.4 0.08</size></box></geometry>
+        </collision>
+      </link>
+    </model>
+
+  </world>
+</sdf>

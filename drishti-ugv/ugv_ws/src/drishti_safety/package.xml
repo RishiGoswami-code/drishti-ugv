@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>drishti_safety</name>
+  <version>0.1.0</version>
+  <description>
+    Deterministic safety supervisor. Owns /cmd_vel and is the only publisher on
+    it. Contains no learned components: the stop decision never depends on a
+    model's confidence score. The decision logic lives in a ROS-free core so it
+    can be unit-tested and audited on its own (SPEC.md section 9).
+  </description>
+
+  <!-- TODO: replace with a real team contact before the repository is shared. -->
+  <maintainer email="team@thevikings.example">The Vikings</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>drishti_msgs</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

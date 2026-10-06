@@ -1,0 +1,93 @@
+# DRISHTI-UGV — hardware transfer contract
+#
+# SPEC.md §12: the hardware transfer is a driver swap. This file exists to make
+# that claim checkable rather than aspirational — it lists exactly what a real
+# camera and base must provide, in the exact names the stack already consumes.
+#
+# There is no driver configuration here because there is no vehicle
+# (STATUS.md A3). When one exists, remap the vendor topics onto these names in
+# the driver's own launch file, and nothing above the driver changes.
+#
+# !! UNVERIFIED !! Never loaded, and never checked against a real driver.
+
+hardware_contract:
+  # --- what the camera driver must publish (SPEC.md §4.1) ---------------
+  # Frames must be camera_left_optical, NOT camera_link. Publishing in the
+  # mounting frame puts every projected point 90 degrees out, and the symptom
+  # is a terrain map that looks plausible and is rotated.
+  required_from_camera:
+    - topic: /camera/rgb/image_raw
+      type: sensor_msgs/msg/Image
+      frame: camera_left_optical
+    - topic: /camera/depth/image_rect_raw
+      type: sensor_msgs/msg/Image
+      frame: camera_left_optical
+      note: "metres, registered to the LEFT optical frame"
+    - topic: /camera/camera_info
+      type: sensor_msgs/msg/CameraInfo
+      frame: camera_left_optical
+    - topic: /camera/right/image_raw
+      type: sensor_msgs/msg/Image
+      frame: camera_right_optical
+      note: "stereo; RTAB-Map is configured for a stereo pair, not RGB-D"
+    - topic: /camera/right/camera_info
+      type: sensor_msgs/msg/CameraInfo
+      frame: camera_right_optical
+    - topic: /camera/points
+      type: sensor_msgs/msg/PointCloud2
+      frame: camera_left_optical
+    - topic: /imu/data
+      type: sensor_msgs/msg/Imu
+      frame: imu_link
+
+  # --- what the base driver must do -------------------------------------
+  required_from_base:
+    - topic: /cmd_vel
+      direction: subscribe
+      type: geometry_msgs/msg/Twist
+      note: >
+        The safety supervisor is the ONLY publisher on this topic. If the base
+        also accepts commands from a joystick node or a vendor teleop tool on
+        the same topic, the safety design is void — route those through
+        /cmd_vel_nav instead so the supervisor stays in the path.
+    - topic: /odom
+      direction: publish
+      type: nav_msgs/msg/Odometry
+      frame: "odom -> base_link"
+      note: "and the matching TF edge, published by nothing else"
+
+  # --- what must NOT appear ---------------------------------------------
+  forbidden:
+    - reason: >
+        No GNSS anywhere in the runtime graph, including initialisation
+        (CONTRIBUTING.md non-negotiable 5). The problem is GPS-denied
+        navigation; a driver that quietly fuses GPS into /odom would make every
+        localisation result meaningless.
+      topics: ["/fix", "/gps/fix", "/navsat", "/gps/filtered"]
+
+  # --- bring-up gates (SPEC.md §12.1) -----------------------------------
+  # Strictly in order. Recorded here so the sequence lives with the code and
+  # not only in a document someone read once.
+  bringup_sequence:
+    - step: 1
+      action: "Bench-test camera and IMU streams"
+    - step: 2
+      action: "Verify calibration and timestamps"
+      check: "every message carries a real sensor stamp, not now()"
+    - step: 3
+      action: "Verify TF frames while stationary"
+      check: "ros2 run tf2_tools view_frames — no duplicate publishers"
+    - step: 4
+      action: "Drive manually at very low speed"
+    - step: 5
+      action: "Validate odometry against measured ground distance"
+    - step: 6
+      action: "Run visual SLAM without autonomous control"
+    - step: 7
+      action: "Run perception and mapping while teleoperated"
+    - step: 8
+      action: "Enable Nav2 at low speed"
+      requires: "external hardware emergency stop, wired and tested"
+      check: "ros2 topic info /cmd_vel --verbose shows exactly one publisher"
+    - step: 9
+      action: "Increase speed only after repeated collision-free runs"

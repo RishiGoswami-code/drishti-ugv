@@ -1,0 +1,117 @@
+# ros_gz_bridge topic map.
+#
+# This file IS the simulator-to-ROS seam. Everything to the right of it is
+# Gazebo and disappears at hardware transfer; everything to the left is the
+# SPEC.md section 4.1 contract and does not change. When a real camera driver
+# replaces Gazebo, only this file and the launch that starts it are deleted.
+#
+# !! VERIFY ON FIRST RUN !! The gz_topic_name values follow the gz-sim
+# convention that a sensor with <topic>foo</topic> publishes its image on
+# /foo and its calibration on /foo/camera_info, and that a depth_camera adds
+# /foo/points. Confirm against `gz topic -l` with the world running before
+# trusting this file -- a silently wrong topic name looks exactly like a dead
+# sensor, and the supervisor will (correctly) sit in STOP.
+
+# ------------------------------------------------------------------ clock
+# Without this nothing can honour use_sim_time and every timestamp in the
+# system is wrong (SPEC.md 3.2 rule 4).
+- ros_topic_name: "/clock"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
+# ------------------------------------------------------------------ camera
+- ros_topic_name: "/camera/rgb/image_raw"
+  gz_topic_name: "/camera/left"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/camera/camera_info"
+  gz_topic_name: "/camera/left/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/camera/right/image_raw"
+  gz_topic_name: "/camera/right"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/camera/right/camera_info"
+  gz_topic_name: "/camera/right/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+# Depth is registered to the LEFT optical frame; see the description.
+- ros_topic_name: "/camera/depth/image_rect_raw"
+  gz_topic_name: "/camera/depth"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/camera/depth/camera_info"
+  gz_topic_name: "/camera/depth/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+# Phase 3 consumes this for elevation mapping. Bridged now so the frame and
+# timestamp can be checked early, when it is cheap to fix.
+- ros_topic_name: "/camera/points"
+  gz_topic_name: "/camera/depth/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS
+
+# --------------------------------------------------------------------- imu
+- ros_topic_name: "/imu/data"
+  gz_topic_name: "/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS
+
+# ---------------------------------------------------------------- odometry
+- ros_topic_name: "/odom"
+  gz_topic_name: "/odom"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+# odom -> base_link, published by the DiffDrive plugin and by nothing else.
+- ros_topic_name: "/tf"
+  gz_topic_name: "/tf"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/joint_states"
+  gz_topic_name: "/joint_states"
+  ros_type_name: "sensor_msgs/msg/JointState"
+  gz_type_name: "gz.msgs.Model"
+  direction: GZ_TO_ROS
+
+# ------------------------------------------------------------------ actuation
+# ROS -> Gazebo, and the ONLY inbound command path. The publisher on the ROS
+# side is the safety supervisor; Nav2 reaches /cmd_vel_nav and never this
+# topic (SPEC.md 4.3, 9.4.1). If this ever carries Nav2 output directly, the
+# safety design is void.
+- ros_topic_name: "/cmd_vel"
+  gz_topic_name: "/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ
+
+# ---------------------------------------------------------------- ground truth
+# EVALUATION ONLY. SPEC.md forbids this pose from entering the runtime graph:
+# nothing subscribes to it at run time, drishti_eval reads it from the bag
+# afterwards. If a node ever subscribes to this, localisation results are
+# meaningless.
+- ros_topic_name: "/ground_truth/pose"
+  gz_topic_name: "/ground_truth/pose"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS

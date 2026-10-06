@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>drishti_description</name>
+  <version>0.1.0</version>
+  <description>
+    Robot description for the DRISHTI-UGV platform: a four-wheel skid-steer
+    base with a forward stereo pair and an IMU. The frame tree is fixed by
+    SPEC.md section 3.1 and enforced by tools/check_robot_description.py.
+  </description>
+
+  <!-- TODO: replace with a real team contact before the repository is shared. -->
+  <maintainer email="team@thevikings.example">The Vikings</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

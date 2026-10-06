@@ -1,0 +1,109 @@
+name: Free-tier stack verification (CPU only, no GPU, no billing)
+
+# !! UNVERIFIED !! Never run. This is the corrected, no-cost counterpart to
+# CLOUD_SETUP.md's AWS path -- see drishti-ugv/FREE_SETUP.md for why, and for
+# what is and isn't in scope here. Runs on GitHub's ubuntu-24.04 hosted
+# runner: the one Linux version ROS 2 Jazzy actually ships binaries for, so
+# no OS-mismatch problems arise. No GPU is
+# available on hosted runners, so Phase 3 (elevation_mapping_cupy) and the
+# full Phase 6 suite are explicitly out of scope here -- see FREE_SETUP.md
+# for where those go instead.
+#
+# Expect this to fail on its first few runs. STATUS.md already names the
+# expected friction (rclcpp API details, unconfirmed gz topic names); this
+# workflow existing does not mean any of it has been proven to work yet.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "drishti-ugv/ugv_ws/**"
+      - ".github/workflows/free-tier-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ROS 2 Jazzy + Gazebo Harmonic bridge + Nav2 + RTAB-Map
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+          sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+              -o /usr/share/keyrings/ros-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
+              | sudo tee /etc/apt/sources.list.d/ros2.list
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+              ros-jazzy-desktop ros-jazzy-navigation2 ros-jazzy-nav2-bringup \
+              ros-jazzy-rtabmap-ros ros-jazzy-grid-map ros-jazzy-vision-msgs \
+              ros-jazzy-cv-bridge ros-jazzy-ros-gz ros-jazzy-ros-gz-bridge \
+              ros-jazzy-ros-gz-sim python3-colcon-common-extensions \
+              python3-rosdep python3-vcstool
+          sudo rosdep init 2>/dev/null || true
+          rosdep update
+
+      - name: Build (first-ever colcon build of this workspace)
+        working-directory: drishti-ugv/ugv_ws
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          rosdep install --from-paths src --ignore-src -y
+          colcon build --symlink-install
+
+      - name: Phase 0 -- offline checks (no ROS, ~5000 assertions)
+        working-directory: drishti-ugv/ugv_ws
+        run: |
+          python3 tools/run_checks.py
+
+      # ---------------------------------------------------------------------
+      # Phase 5, standalone: the supervisor with NOTHING feeding it.
+      #
+      # safety.launch.py's own header says this is deliberate: with no
+      # inputs at all it must sit in STOP and publish zero velocity from the
+      # first tick -- SPEC.md 9.4.2, "the fail-safe path observable from day
+      # one". This needs no Gazebo, no Nav2, no perception, so it is the
+      # lowest-risk real (non-prototype) safety demo available right now.
+      # ---------------------------------------------------------------------
+      - name: Phase 5 (standalone) -- supervisor holds STOP with no inputs
+        working-directory: drishti-ugv/ugv_ws
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          (ros2 launch drishti_bringup safety.launch.py > /tmp/safety_standalone.log 2>&1 &)
+          sleep 5
+          echo "---- /safety/state, first few ticks ----"
+          timeout 8 ros2 topic echo /safety/state --once 2>&1 | tee /tmp/safety_state_standalone.log
+          echo "---- /cmd_vel publisher count (must be exactly 1: safety_supervisor) ----"
+          timeout 5 ros2 topic info /cmd_vel --verbose 2>&1 | tee /tmp/cmd_vel_info.txt
+
+      # ---------------------------------------------------------------------
+      # Phase 1: Nav2 actually driving. Needs the Phase-1-only stub below,
+      # because bringup.launch.py does not wire in Phase 4 perception yet,
+      # and "no /perception/health ever arrives" is itself a stop condition
+      # (CONTRIBUTING.md rule 2). See ugv_ws/tools/phase1_stub_perception_health.py
+      # -- delete that stub the day real perception is wired in.
+      # ---------------------------------------------------------------------
+      - name: Phase 1 -- Nav2 bring-up in Gazebo (headless), with the Phase-1 stub
+        working-directory: drishti-ugv/ugv_ws
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          export DISPLAY=""
+          (python3 tools/phase1_stub_perception_health.py > /tmp/stub_health.log 2>&1 &)
+          sleep 2
+          (ros2 launch drishti_bringup bringup.launch.py world:=easy.sdf headless:=true > /tmp/bringup.log 2>&1 &)
+          sleep 20
+          echo "---- /cmd_vel, should show nonzero motion once Nav2 has a goal ----"
+          timeout 10 ros2 topic echo /cmd_vel 2>&1 | tee /tmp/cmd_vel_echo.log
+          echo "---- TF tree ----"
+          timeout 5 ros2 run tf2_tools view_frames 2>&1 | tee /tmp/tf_frames.log
+
+      - name: Upload logs as artifacts (the log content is the evidence, not the pass mark)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drishti-free-tier-run-${{ github.run_number }}
+          path: /tmp/*.log
+          if-no-files-found: warn

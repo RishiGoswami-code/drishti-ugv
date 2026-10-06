@@ -1,0 +1,58 @@
+# DRISHTI-UGV — perception
+#
+# SPEC.md §5.4 stage V1: a pretrained lightweight detector, small vocabulary,
+# no training. Do not collect data until failure analysis says the model is the
+# bottleneck.
+#
+# !! UNVERIFIED !! Never loaded.
+
+perception:
+  ros__parameters:
+    use_sim_time: true
+
+    # --- model ------------------------------------------------------------
+    # Nano weights on purpose: the RTX 3050 has 4-6 GB of VRAM shared with
+    # Gazebo and the elevation mapper (STATUS.md D15). A bigger model that
+    # blows the perception latency budget is worse than a smaller one that
+    # meets it -- SPEC.md §8 allows 100 ms, and a late detection of a
+    # pedestrian is not a detection.
+    weights: "yolo11n.pt"
+    device: "cuda:0"
+    image_size: 640
+    confidence: 0.25
+
+    frame_id: "camera_left_optical"
+
+    # --- health -----------------------------------------------------------
+    # Published on this timer regardless of whether frames arrive. Silence must
+    # stay a detectable failure: the supervisor treats a missing health report
+    # as a dead camera and stops.
+    publish_rate: 10.0
+
+    # Confidence reported when the pipeline ran and found nothing. NOT 1.0 --
+    # see health.py. Open terrain is the common case and must not pin the
+    # supervisor into SLOW, but a value of 1.0 would let a silently dead
+    # detector report perfect confidence forever.
+    nominal_confidence: 0.80
+
+    # A mask covering less than this fraction of the image has its confidence
+    # scaled by the coverage: a confident opinion about 3% of the pixels says
+    # almost nothing about the frame.
+    min_segmentation_coverage: 0.20
+
+    # Must match the supervisor's values in drishti.yaml, or the two disagree
+    # about what "fresh" means.
+    t_camera_stale: 0.30
+    t_depth_stale: 0.30
+
+    # --- nearest obstacle --------------------------------------------------
+    # A low percentile of the valid depths in a detection box, not the raw
+    # minimum. Depth speckle would otherwise trigger an emergency stop every
+    # frame, and the usual fix -- raising d_emergency -- disables the stop for
+    # real obstacles too. Tune per sensor; it belongs in an experiment
+    # (EVALUATION.md §5).
+    obstacle_percentile: 10.0
+
+    # Detections below this do not trigger a hard stop. They still raise
+    # semantic cost and drag mean_confidence down, so the vehicle slows.
+    obstacle_min_confidence: 0.25
