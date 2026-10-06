@@ -173,6 +173,7 @@ machine and the container in `drishti-ugv/docker/`.
 ```
 drishti-ugv/    documentation set, ROS 2 workspace (ugv_ws/) and container definition
 prototype/      ROS-free demonstration of the decision logic, parity-checked against the C++
+papers/         reading list for the literature behind the design (PDFs are kept out of git)
 .devcontainer/  CPU-only development environment
 .github/        CI: build and exercise the workspace on Ubuntu 24.04
 ```

@@ -57,3 +57,7 @@ desktop.ini
 # regenerable from the sources beside them.
 prototype/runs.json
 prototype/web/drishti_console.html
+
+# ---- literature ----
+# Local copies of papers are not redistributed from this repository.
+/papers/*.pdf
