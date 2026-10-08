@@ -18,6 +18,7 @@
   <exec_depend>drishti_msgs</exec_depend>
   <exec_depend>drishti_safety</exec_depend>
   <exec_depend>drishti_sim</exec_depend>
+  <exec_depend>drishti_sim_isaac</exec_depend>
   <exec_depend>drishti_description</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
   <exec_depend>launch</exec_depend>

@@ -12,7 +12,7 @@ Last updated: 7 September 2026
 
 ```
                         ┌──────────────────────────┐
-                        │     GAZEBO HARMONIC      │
+                        │  ISAAC SIM  (or GAZEBO)  │
                         │  UGV + terrain + sensors │
                         │  RGB / depth / IMU / odom│
                         └────────────┬─────────────┘
@@ -73,7 +73,7 @@ is the last thing between a planner command and the wheels.
 
 | Layer | Primary | Fallback | Decision rule |
 |---|---|---|---|
-| Simulator | **Gazebo Harmonic** | Isaac Sim 6.x, if a qualifying GPU is obtained | Decided 6 Sep 2026 by the SETUP.md §1.2 rule — see D15 |
+| Simulator | **Isaac Sim 6.x** | Gazebo Harmonic | Isaac Sim chosen 8 Oct 2026 (D21), reversing D15; Gazebo is the fallback and the only simulator CI can run |
 | Middleware | ROS 2 Jazzy | ROS 2 Humble | Jazzy on Ubuntu 24.04 |
 | SLAM | RTAB-Map | ORB-SLAM3 (offline benchmark only) | One SLAM system in the runtime graph, never two |
 | Depth | Stereo / RGB-D | Depth Anything V2 Small | Prefer real metric depth |
@@ -89,7 +89,7 @@ is the last thing between a planner command and the wheels.
 ORB-SLAM3 together adds integration and debugging cost without guaranteeing
 better navigation.
 
-> **Simulator decision, 6 September 2026 (D15).** The project's development GPU
+> **Simulator decision, 6 September 2026 (D15) — superseded by D21 below.** The project's development GPU
 > is an RTX 3050 laptop part (4–6 GB VRAM) in a Lenovo LOQ. NVIDIA's published
 > Isaac Sim minimum — re-verified against the live requirements page on 6 Sep
 > 2026 — is a **GeForce RTX 4080 with 16 GB VRAM and 32 GB system RAM**, and the
@@ -106,6 +106,14 @@ better navigation.
 > integrated GPU audited on 5 Sep. Isaac Sim would launch. It is held as a
 > contingent option for offline synthetic-data generation on small scenes, not
 > as the development loop.
+>
+> **Simulator decision, revised 8 October 2026 (D21).** Isaac Sim is the primary
+> simulator again, on the project owner's instruction. The hardware conflict above
+> has not gone away; see STATUS.md D21 for how it is carried. The Isaac Sim backend
+> (`drishti_sim_isaac`) reads the same URDF and SDF worlds as the Gazebo backend
+> and publishes the same §4.1 topics, with `tools/check_isaac_assets.py` enforcing
+> the parity, so nothing above the simulator changes in either direction. It has
+> never been run.
 
 ---
 
@@ -492,6 +500,22 @@ The simulator gives exact vehicle pose and object geometry. Store ground truth
 **alongside** every rosbag2 recording so localisation error, obstacle distance
 and path deviation are computed objectively rather than eyeballed.
 
+### 10.5 Simulator backends
+
+Two backends publish the §4.1 contract: Isaac Sim (`drishti_sim_isaac`, primary)
+and Gazebo Harmonic (`drishti_sim`, fallback and CI). Both build the vehicle from
+`drishti.urdf.xacro` and the worlds from `drishti_sim/worlds/*.sdf`, so a
+dimension or a rock moves in both at once. Select with `sim:=isaac|gazebo` on
+`bringup.launch.py`.
+
+Known differences, not yet characterised: camera noise (Gazebo adds Gaussian
+noise, the Isaac backend does not); depth range (Gazebo clips depth at
+0.10–20 m, the Isaac backend uses the left camera's 0.05–60 m); IMU and odometry
+rate (Isaac publishes at its step rate, 60 Hz by default, where the description
+asks for 100 Hz); physics step (1 ms against 1/60 s); and rendering. A number
+measured in one simulator is not evidence for the other, so record the backend
+with every result.
+
 ---
 
 ## 11. Failure modes
@@ -517,7 +541,7 @@ and path deviation are computed objectively rather than eyeballed.
 
 ```
 SIMULATION
-Gazebo → ROS 2 → RTAB-Map → traversability → Nav2 → supervisor
+Simulator (Isaac Sim / Gazebo) → ROS 2 → RTAB-Map → traversability → Nav2 → supervisor
                        │
                        ▼
               hundreds/thousands of missions

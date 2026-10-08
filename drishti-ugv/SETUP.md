@@ -48,7 +48,7 @@ SPEC.md §4.
 
 Do not spend days fighting a marginal GPU. Decide, record, move.
 
-### 1.3 Decision taken — 6 September 2026
+### 1.3 Decision taken — 6 September 2026 (superseded by §1.4)
 
 **Simulator: Gazebo Harmonic.** The development machine is a **Lenovo LOQ with
 an RTX 3050 laptop GPU** (4–6 GB VRAM). Isaac Sim's published minimum is an RTX
@@ -66,6 +66,23 @@ The machine does have **CUDA**, which the previously audited laptop did not.
 and local YOLO inference and light fine-tuning are feasible within 4–6 GB.
 
 Recorded as D15 and D16 in STATUS.md.
+
+### 1.4 Decision revised — 8 October 2026
+
+**Simulator: Isaac Sim, with Gazebo Harmonic as the fallback** (STATUS.md D21).
+This reverses §1.3 on the project owner's instruction. It is not because the
+hardware changed: the RTX 3050 laptop is still below NVIDIA's published minimum,
+so §1.1 and §1.2 still describe it accurately. What follows from the decision:
+
+- Running the Isaac Sim backend needs a machine that meets the minimum — an RTX
+  4080-class GPU with RT cores, 16 GB VRAM, 32 GB RAM. A rented one is sized in
+  CLOUD_SETUP.md §10.
+- Isaac Sim cannot run on a hosted CI runner (no GPU), so CI keeps using Gazebo
+  through `sim:=gazebo`.
+- The Gazebo backend remains the way to exercise the stack on a machine below the
+  floor. Nothing above the simulator differs between the two (SPEC.md §4, §10.5).
+- The Isaac Sim backend has never been run. Treat its first run as the first
+  build of anything: expect API-level fixes.
 
 ---
 
@@ -102,6 +119,10 @@ Follow this sequence. Each step is verifiable; do not proceed past a failure.
 12. Add semantic/geometry fusion.
 13. Add the safety supervisor.
 14. Automate scenario generation and metrics.
+
+Steps 3–6 describe the Isaac Sim backend. On a machine below its floor, install
+Gazebo Harmonic and the `ros_gz` packages (`ros-jazzy-ros-gz*`) instead and launch
+with `sim:=gazebo`.
 
 This mirrors the phase structure in [TASK.md](TASK.md) — steps 1–4 are Phase 0,
 5–7 are Phase 1, and so on.

@@ -37,6 +37,7 @@ BRIDGE = os.path.join(WS, "src", "drishti_sim", "config", "bridge.yaml")
 LAUNCH_DIRS = [
     os.path.join(WS, "src", "drishti_bringup", "launch"),
     os.path.join(WS, "src", "drishti_sim", "launch"),
+    os.path.join(WS, "src", "drishti_sim_isaac", "launch"),
     os.path.join(WS, "src", "drishti_description", "launch"),
 ]
 

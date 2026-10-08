@@ -93,7 +93,7 @@ jobs:
           export DISPLAY=""
           (python3 tools/phase1_stub_perception_health.py > /tmp/stub_health.log 2>&1 &)
           sleep 2
-          (ros2 launch drishti_bringup bringup.launch.py world:=easy.sdf headless:=true > /tmp/bringup.log 2>&1 &)
+          (ros2 launch drishti_bringup bringup.launch.py sim:=gazebo world:=easy.sdf headless:=true > /tmp/bringup.log 2>&1 &)
           sleep 20
           echo "---- /cmd_vel, should show nonzero motion once Nav2 has a goal ----"
           timeout 10 ros2 topic echo /cmd_vel 2>&1 | tee /tmp/cmd_vel_echo.log

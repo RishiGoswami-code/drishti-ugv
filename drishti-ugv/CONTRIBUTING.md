@@ -13,7 +13,7 @@ with no GPS. Mature open source carries the infrastructure (RTAB-Map for
 visual SLAM, `elevation_mapping_cupy` for terrain, Nav2 for planning and
 control); our own code is the camera-to-traversability fusion layer, a
 deterministic safety supervisor, and the evaluation harness. Development is
-simulation-first in Gazebo Harmonic.
+simulation-first in Isaac Sim, with Gazebo Harmonic as the fallback and CI simulator.
 
 ---
 
@@ -25,7 +25,7 @@ working unless it has actually been executed, and report failures with their
 output rather than rounding results up.
 
 Hardware and simulator decisions are recorded there too: the simulator is
-Gazebo Harmonic (STATUS.md D15) and `elevation_mapping_cupy` stays on the
+Isaac Sim with Gazebo Harmonic as the fallback (STATUS.md D21) and `elevation_mapping_cupy` stays on the
 primary path (D16).
 
 ---
@@ -90,6 +90,7 @@ drishti-ugv/
     ├── tools/               contract-drift checks (no ROS needed)
     └── src/                 drishti_msgs, drishti_bringup, drishti_safety,
                              drishti_description, drishti_sim,
+                             drishti_sim_isaac,
                              drishti_traversability, drishti_perception,
                              drishti_eval
 ```

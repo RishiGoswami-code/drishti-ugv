@@ -26,6 +26,7 @@ Components we intend to run.
 | [isl-org/Open3D](https://github.com/isl-org/Open3D) | 3D processing, registration, visualisation | MIT | General-purpose utility, not a navigation stack |
 | [isaac-sim/IsaacSim-ros_workspaces](https://github.com/isaac-sim/IsaacSim-ros_workspaces) | ROS 2 workspaces for Isaac Sim | Apache-2.0 | — |
 | NVIDIA Isaac Sim | Simulator | **NVIDIA proprietary / EULA** | Review the EULA and deployment rights |
+| [isaac-sim/IsaacSim](https://github.com/isaac-sim/IsaacSim) | Isaac Sim source, standalone examples and the ROS 2 node definitions `drishti_sim_isaac` was written against (read at tag v6.1.0) | Apache-2.0 for the source; binaries under the NVIDIA EULA | Verify |
 
 ## 2. Reference and fallback
 

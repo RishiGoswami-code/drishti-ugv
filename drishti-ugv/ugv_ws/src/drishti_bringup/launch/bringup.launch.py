@@ -2,14 +2,20 @@
 #
 # Phase 1 bringup: simulator + Nav2 + the safety supervisor.
 #
+# sim:=isaac (default) starts the Isaac Sim backend, sim:=gazebo the Gazebo
+# Harmonic one. Both publish the same SPEC.md 4.1 topics and take the same
+# world/headless arguments (STATUS.md D21). Isaac Sim needs a GPU that meets
+# NVIDIA's minimum and cannot run on a hosted CI runner, so CI uses sim:=gazebo.
+#
 # The command chain is deliberately explicit here, because it is the thing
 # most likely to be broken by a well-meaning edit:
 #
 #     Nav2 controller ---> /cmd_vel_nav ---> safety_supervisor ---> /cmd_vel
 #                                                                     |
-#                                                          ros_gz_bridge
+#                                                  simulator bridge (Isaac Sim ROS 2
+#                                                  bridge, or ros_gz_bridge for Gazebo)
 #                                                                     v
-#                                                          Gazebo DiffDrive
+#                                                          the simulated base
 #
 # Nav2 has no route to /cmd_vel. The supervisor is the only publisher on it
 # (SPEC.md 4.3, 9.4.1). tools/check_wiring.py enforces this statically;
@@ -31,7 +37,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 
 from launch_ros.actions import Node
 
@@ -39,12 +45,16 @@ from launch_ros.actions import Node
 def generate_launch_description():
     pkg_bringup = get_package_share_directory('drishti_bringup')
     pkg_sim = get_package_share_directory('drishti_sim')
+    pkg_sim_isaac = get_package_share_directory('drishti_sim_isaac')
     pkg_nav2 = get_package_share_directory('nav2_bringup')
 
     params_file = os.path.join(pkg_bringup, 'config', 'drishti.yaml')
     nav2_params = os.path.join(pkg_bringup, 'config', 'nav2.yaml')
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'sim', default_value='isaac',
+            description="Simulator backend: 'isaac' (Isaac Sim, default) or 'gazebo'."),
         DeclareLaunchArgument('world', default_value='easy.sdf'),
         DeclareLaunchArgument('headless', default_value='false'),
         DeclareLaunchArgument(
@@ -57,11 +67,24 @@ def generate_launch_description():
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
+                os.path.join(pkg_sim_isaac, 'launch', 'isaac_sim.launch.py')),
+            launch_arguments={
+                'world': LaunchConfiguration('world'),
+                'headless': LaunchConfiguration('headless'),
+            }.items(),
+            condition=IfCondition(PythonExpression(
+                ["'", LaunchConfiguration('sim'), "' == 'isaac'"])),
+        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
                 os.path.join(pkg_sim, 'launch', 'sim.launch.py')),
             launch_arguments={
                 'world': LaunchConfiguration('world'),
                 'headless': LaunchConfiguration('headless'),
             }.items(),
+            condition=IfCondition(PythonExpression(
+                ["'", LaunchConfiguration('sim'), "' == 'gazebo'"])),
         ),
 
         GroupAction(

@@ -35,7 +35,7 @@ Read them in this order.
 |---|---|---|
 | OS | Ubuntu 24.04 | — |
 | Middleware | ROS 2 Jazzy | ROS 2 Humble |
-| Simulator | Gazebo Harmonic | Isaac Sim, if a qualifying GPU is available |
+| Simulator | Isaac Sim 6.x | Gazebo Harmonic (also the CI simulator) |
 | Localisation | RTAB-Map (stereo + IMU) | ORB-SLAM3 (offline benchmark only) |
 | Terrain | `elevation_mapping_cupy` | custom grid map |
 | Navigation | Nav2 + MPPI controller | Nav2 + RPP / DWB |

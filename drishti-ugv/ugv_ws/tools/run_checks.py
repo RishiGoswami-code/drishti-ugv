@@ -20,6 +20,7 @@ CHECKS = [
     ("robot description (SPEC 3 frame tree)", "tools/check_robot_description.py"),
     ("command path (SPEC 9.4.1 /cmd_vel ownership)", "tools/check_wiring.py"),
     ("simulation assets (worlds, systems, collisions)", "tools/check_sim_assets.py"),
+    ("isaac sim backend (topic parity, frames, drive maths)", "tools/check_isaac_assets.py"),
     ("localisation metrics (ATE, RPE, alignment)",
      "src/drishti_eval/test/test_metrics.py"),
     ("run report (drift target, alignment disclosure)",

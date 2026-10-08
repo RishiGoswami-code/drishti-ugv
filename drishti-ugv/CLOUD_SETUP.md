@@ -17,6 +17,10 @@ phase, using the assets already written offline (STATUS.md D17).
 
 ## 1. Why this is a cheaper machine than SETUP.md §1 implies
 
+> **Update, 8 October 2026 (D21).** This section and §2 size the machine for the
+> **Gazebo** backend. Isaac Sim is now the primary simulator and needs a larger
+> one: see §10.
+
 SETUP.md §1 is written against the **Isaac Sim** floor (RTX 4080-class, RT
 cores required, A100/H100 explicitly unsupported). That floor does not apply
 here: [D15](STATUS.md) already settled the simulator on **Gazebo Harmonic**,
@@ -215,3 +219,38 @@ aws ec2 terminate-instances --instance-ids <id> # once the phase's numbers are r
 Copy rosbag2 recordings and any suite output off the instance before stopping
 it — an EBS-backed stopped instance keeps its disk, but don't rely on that as
 the archive; STATUS.md and the repository are.
+
+---
+
+## 10. Isaac Sim backend (D21)
+
+Isaac Sim is the primary simulator. The sections above size the machine for
+Gazebo; Isaac Sim needs a different one.
+
+| | Gazebo backend (§1–9) | Isaac Sim backend |
+|---|---|---|
+| GPU | any CUDA GPU; a T4 is enough | RT cores required; NVIDIA's minimum is an RTX 4080-class GPU with 16 GB VRAM |
+| RAM / disk | 16 GB / 100 GB | 32 GB minimum / 50 GB SSD for Isaac Sim alone; more for the stack and recordings |
+| AWS instance (verify before booking) | `g4dn.xlarge` | a GPU instance with RT cores and at least 16 GB VRAM, for example `g5` (A10G, 24 GB) or `g6e` (L40S, 48 GB); run NVIDIA's Compatibility Checker before relying on one. A100 and H100 are **not** supported: they have no RT cores |
+| Cost | low | substantially higher; the stop-don't-just-disconnect rule matters more |
+
+Isaac Sim is available as a container (`nvcr.io/nvidia/isaac-sim`; NVIDIA's own
+installer script defaults to tag 6.0.1, so check NGC for a newer one), as a
+standalone build and as a Python package. The ROS 2 stack runs separately, in the
+existing `docker/Dockerfile`; the two talk over DDS, so run both with
+`--network host` and the same `ROS_DOMAIN_ID`.
+
+```bash
+export ISAAC_SIM_PATH=/isaac-sim        # the install directory, containing python.sh
+ros2 launch drishti_bringup bringup.launch.py sim:=isaac headless:=true world:=easy.sdf
+```
+
+ROS 2 Jazzy must be sourced in that shell before launch: Isaac Sim reads its
+library path when the process starts and cannot be repaired afterwards. The launch
+file expands the xacro and starts Isaac Sim with its own `python.sh`.
+
+`headless:=true` removes the window, not the GPU: the cameras still render.
+Watch the run through Foxglove as in §3.
+
+None of this has been run (STATUS.md D21). `drishti_sim_isaac/README.md` lists
+what to check first.

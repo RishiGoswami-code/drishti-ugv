@@ -92,7 +92,7 @@ Why it is hard:
 | Layer | Choice |
 |---|---|
 | OS / middleware | Ubuntu 24.04, ROS 2 Jazzy |
-| Simulator | Gazebo Harmonic |
+| Simulator | Isaac Sim 6.x (primary), Gazebo Harmonic (fallback, CI) |
 | Localisation | RTAB-Map (stereo + IMU) |
 | Terrain | `elevation_mapping_cupy` (CUDA) |
 | Planning / control | Nav2, MPPI |
@@ -134,9 +134,11 @@ What has been verified, and how:
 | Workspace builds | `colcon build`, all 8 packages, on a hosted Ubuntu 24.04 runner |
 | Supervisor behaves on real ROS 2 | launched with no inputs it publishes `STOP` / `LOCALIZATION_LOST` with zero velocity; `/cmd_vel` has exactly one publisher |
 | Gazebo + bridge | headless start, bridges created from the config |
+| Isaac Sim backend | written against the 6.1 API and checked offline for consistency with the topic contract; **never run** |
 
 What has **not** been done: Nav2 lifecycle bring-up is currently aborted by an
-unconfigured `collision_monitor` node; no SLAM run, drift measurement, GPU terrain
+unconfigured `collision_monitor` node; the Isaac Sim backend has never been run, since no machine in hand meets its
+hardware minimum; no SLAM run, drift measurement, GPU terrain
 run, detector run or mission suite has been executed; there is no hardware. The
 running log of what is open lives in [`STATUS.md`](drishti-ugv/STATUS.md).
 

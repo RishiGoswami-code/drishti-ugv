@@ -148,7 +148,7 @@ wrong sensor.
 
 | Real | Here |
 |---|---|
-| Gazebo + stereo camera | raycast over a height field |
+| Simulator (Isaac Sim / Gazebo) + stereo camera | raycast over a height field |
 | `elevation_mapping_cupy` | observed cells with slope, step, roughness |
 | Nav2 planner + MPPI | A\* over the cost grid + pure pursuit |
 | Nav2 inflation layer | the same idea, 0.40 m inscribed / 1.10 m inflation |

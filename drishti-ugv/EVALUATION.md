@@ -179,7 +179,7 @@ would make every localisation number in this project meaningless.
 - Full rosbag2: sensors, TF, pose, costmaps, plan, `/cmd_vel`, `/safety/state`
 - Ground-truth pose track and object poses
 - Scenario id, random seed, and the complete parameter set in effect
-- Software versions (ROS 2, Gazebo, CUDA, driver, commit hash)
+- Software versions (ROS 2, simulator backend and version, CUDA, driver, commit hash)
 
 Without the seed and the parameter set, a result is an anecdote.
 

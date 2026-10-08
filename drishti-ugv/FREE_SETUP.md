@@ -10,6 +10,11 @@ payment method attached.
 > been exercised is listed in [STATUS.md](STATUS.md) under *Verified in CI*;
 > anything not listed there has not been run.
 
+> **Isaac Sim does not run on this path.** It needs an RTX-class GPU that meets
+> NVIDIA's minimum; hosted runners have none and a notebook T4 is below it. This
+> guide uses the Gazebo backend throughout, selected with `sim:=gazebo`. See
+> STATUS.md D21.
+
 ---
 
 ## 1. Only one part of the stack needs a GPU
@@ -86,7 +91,7 @@ cd drishti-ugv/ugv_ws && python tools/run_checks.py
 
 ```bash
 python3 ugv_ws/tools/phase1_stub_perception_health.py &
-ros2 launch drishti_bringup bringup.launch.py world:=easy.sdf headless:=true
+ros2 launch drishti_bringup bringup.launch.py sim:=gazebo world:=easy.sdf headless:=true
 ```
 
 Known open issue: Nav2's lifecycle manager aborts because `collision_monitor`

@@ -185,7 +185,7 @@ Ranked by expected cost. Mitigations are specified in SPEC.md §11.
 | R1 | TF / timestamp / calibration errors silently corrupt everything downstream | Validate the TF tree and clock sync in Phase 0, before any AI work |
 | R2 | A ditch or water surface is classified as drivable | Fuse slope and height-variance gates with semantics; unknown is expensive |
 | R3 | SLAM drift on featureless terrain | Stereo + IMU, speed limits, re-localisation, and a stop on lost pose |
-| R4 | Isaac Sim GPU/VRAM demand exceeds available hardware | Gazebo Harmonic fallback; reduce sensor count and scene complexity |
+| R4 | Isaac Sim GPU/VRAM demand exceeds available hardware — **this is the current state** (STATUS.md D21) | Gazebo Harmonic fallback and CI simulator; a qualifying GPU for the Isaac Sim backend; reduce sensor count and scene complexity |
 | R5 | Simulation-to-reality gap in lighting and texture | Domain randomisation from Phase 1; treat sim numbers as relative, not absolute |
 | R6 | Licence terms block redistribution | Screen before integrating; ORB-SLAM3 excluded from the build |
 | R7 | Scope creep into model training before the loop works | Phase gates: Phase N+1 does not start until Phase N ships a runnable artefact |
@@ -196,7 +196,7 @@ Ranked by expected cost. Mitigations are specified in SPEC.md §11.
 
 | # | Question | Blocks | Owner |
 |---|---|---|---|
-| Q2 | Is the available workstation GPU ≥ RTX 4080-class / 16 GB VRAM? | Isaac Sim vs Gazebo decision (Phase 0) | Team |
+| Q2 | Is the available workstation GPU ≥ RTX 4080-class / 16 GB VRAM? | Whether the Isaac Sim backend can be run at all (D21) | Team |
 | Q3 | Will a physical UGV be available within the evaluation window? | Whether Phase 7 is scheduled or contingent | Stakeholders |
 | Q4 | Is monocular-only input a hard constraint at evaluation? | Depth strategy; stereo is assumed today | Stakeholders |
 | Q5 | Are domain-specific terrain classes or hazard types required? | Semantic taxonomy in SPEC.md §5.2 | Domain experts |

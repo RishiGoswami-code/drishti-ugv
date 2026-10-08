@@ -17,10 +17,12 @@ and a small team working in parallel where tasks are independent.
 the simulator verified, TF and clock health provable.
 
 - [ ] Install Ubuntu 24.04 and a matching NVIDIA driver
-- [x] Confirm GPU meets the Isaac Sim floor — **decided: Gazebo Harmonic** (SETUP.md §1.3, D15)
+- [x] Confirm GPU meets the Isaac Sim floor — **it does not; Isaac Sim is the primary simulator regardless (D21), Gazebo Harmonic the fallback and the CI simulator**
 - [ ] Install ROS 2 Jazzy; verify `ros2 topic list` and a talker/listener pair
 - [ ] Install Gazebo Harmonic and the `ros_gz` bridge packages for Jazzy
 - [ ] Verify the bridge: a Gazebo sensor topic reaches ROS 2 via `ros_gz_bridge`
+- [ ] Install Isaac Sim 6.x on a machine that meets NVIDIA's minimum and pass its Compatibility Checker
+- [ ] Run `drishti_sim_isaac` and confirm every topic in `config/isaac_sim.json` arrives with sane timestamps — *written against the 6.1 API, never run (D21)*
 - [x] Create the `colcon` workspace skeleton and `drishti_msgs` package
 - [x] Add `config/` with a shared params file and `use_sim_time` set globally
 - [ ] Pin versions: record exact ROS 2, Gazebo, CUDA and driver versions in STATUS.md
@@ -130,7 +132,7 @@ odometry and Nav2.
 - [ ] Project semantics into the elevation map as semantic layers
 - [x] Wire the `semantic` and `uncertainty` terms into the cost function — *taxonomy feeds `semantic_cost`/`semantic_lethal`; layer names already in `traversability.yaml`*
 - [ ] Measure perception latency against the ≤ 100 ms budget; apply TensorRT if needed — *latency is measured and published; the budget cannot be checked without hardware*
-- [ ] Generate synthetic training data **only if** failure analysis demands it (Isaac Sim is available offline for small scenes — D15)
+- [ ] Generate synthetic training data **only if** failure analysis demands it (Isaac Sim is the primary simulator — D21)
 - [ ] Ablation: stereo depth vs Depth Anything V2 Small
 
 **Acceptance**

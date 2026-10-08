@@ -13,17 +13,20 @@ Update it whenever a phase moves, a decision is made, or a suite is run.
 | | |
 |---|---|
 | **Phase** | Phases 0–7 written and statically checked; **partly exercised in CI** (see *Verified in CI*) |
-| **Last updated** | 6 October 2026 |
+| **Last updated** | 8 October 2026 |
 | **Next action** | Get Nav2 lifecycle bring-up through (open `collision_monitor` configuration issue), then SLAM and the mission suite |
 
-> **B3 is closed.** A Lenovo LOQ with an RTX 3050 is available and becomes the
-> development machine. Two consequences (D15, D16): the simulator switches to
-> **Gazebo Harmonic**, because 4–6 GB VRAM is far below Isaac Sim's 16 GB floor;
-> and **`elevation_mapping_cupy` is viable again**, because the machine has
-> CUDA. D12 is reversed.
+> **Simulator: Isaac Sim, from 8 October 2026 (D21).** The 6 September decision
+> (D15, Gazebo Harmonic) was reversed on the project owner's instruction. The
+> hardware conflict behind D15 is **unchanged**: the available machine, a Lenovo
+> LOQ with an RTX 3050 (4–6 GB VRAM), is far below NVIDIA's published Isaac Sim
+> minimum (an RTX 4080-class GPU with 16 GB VRAM and 32 GB RAM). So the Isaac Sim
+> backend is written and checked offline for consistency but **has never been
+> run and cannot be run on the hardware in hand**. Gazebo Harmonic stays as the
+> fallback and as the only simulator CI can run.
 >
-> The RTX 3050 clears the one gate that the previously audited machine failed
-> outright: it has RT cores. Nothing above the simulator changes.
+> D16 stands: **`elevation_mapping_cupy` stays on the primary path**, because the
+> machine has CUDA. D12 is reversed.
 
 ---
 
@@ -50,6 +53,7 @@ Update it whenever a phase moves, a decision is made, or a suite is run.
 | 17 | **Phase 6 harness**: outcome classification, seeded mission generation, domain randomisation, suite roll-up — **2571 checks, 0 failures** | 7 Sep 2026 |
 | 18 | **Phase 7 gates**: SPEC.md §8 budget checking (tail percentiles, not means) and optimisation regression testing with an explicit power check — **79 checks, 0 failures** | 7 Sep 2026 |
 | 19 | Hardware transfer contract (`config/hardware.yaml`, `hardware.launch.py`) now **machine-checked** by `check_wiring.py`; container definition written | 7 Sep 2026 |
+| 20 | **Isaac Sim backend written, not run (D21)**: `drishti_sim_isaac` builds the robot and the Easy/Medium/Hard worlds in USD from the same URDF and SDF files Gazebo uses, publishes the same 14 topics through Isaac Sim's ROS 2 bridge, and is selected with `sim:=isaac\|gazebo` on `bringup.launch.py`. `tools/check_isaac_assets.py` checks topic parity with the Gazebo bridge, optical-frame and camera orientation, drive kinematics and world parsing offline | 8 Oct 2026 |
 
 ## In progress
 
@@ -118,17 +122,21 @@ work that needs a running system:
 - executing the suite and recording actual numbers
 - Phase 7 optimisation, which is meaningless before a profile exists
 
-The next real step is a machine: Ubuntu 24.04, ROS 2 Jazzy, Gazebo Harmonic,
-then `colcon build`.
+The next real step is a machine: Ubuntu 24.04, ROS 2 Jazzy, then `colcon build`,
+with Gazebo Harmonic for the simulator that runs anywhere and Isaac Sim on a
+machine that meets NVIDIA's minimum (D21).
 
 When a machine is available, in this order:
 
 1. Ubuntu 24.04 + NVIDIA driver; record VRAM, RAM and free disk.
-2. ROS 2 Jazzy, then Gazebo Harmonic (not Isaac Sim — D15).
+2. ROS 2 Jazzy, then a simulator: Gazebo Harmonic (any machine, and CI) and, on a
+   qualifying GPU, Isaac Sim (D21).
 3. `colcon build --symlink-install`. **First real build of anything here.**
    Expect to fix rclcpp API details in `safety_supervisor_node.cpp`.
-4. Confirm the gz topic names in `drishti_sim/config/bridge.yaml` against
-   `gz topic -l`. A wrong name looks exactly like a dead sensor.
+4. Confirm the simulator's topic names: `gz topic -l` against
+   `drishti_sim/config/bridge.yaml` for Gazebo, and `ros2 topic list` against
+   `drishti_sim_isaac/config/isaac_sim.json` for Isaac Sim. A wrong name looks
+   exactly like a dead sensor.
 5. `ros2 topic info /cmd_vel --verbose` — exactly one publisher,
    `safety_supervisor`. This is the invariant the whole safety story rests on.
 6. Fill *Pinned versions* below.
@@ -234,6 +242,7 @@ Decisions with consequences. Append; do not rewrite history.
 | D18 | 7 Sep 2026 | **A frozen camera is not covered by SPEC.md §9** | `t_camera_stale` catches a camera that goes silent, but not one that keeps republishing the same image with a fresh timestamp. Nothing in the supervisor notices that frame content has stopped changing, so a frozen camera reads as healthy. Recorded as a known gap rather than designed around; `faults.py` includes the scenario so it fails visibly when it is run | **CLOSED 7 Sep 2026 by D19** |
 | D19 | 7 Sep 2026 | **Frozen-camera detection added: `rgb_static_for` on `/perception/health`, `t_frame_static` in SPEC.md §9.3, and a new `CAMERA_FROZEN` reason code** | Closes D18. Liveness and freshness are different questions and `t_camera_stale` only answers the first. Perception fingerprints each frame; the supervisor stops when content stops changing, independently of age. Absence of the signal is not treated as a freeze, so an older perception build stays driveable | **No** — safety condition |
 | D20 | 7 Sep 2026 | **The randomised suite needs ~1470 missions per side to detect a 2-point regression, not the ~1000 TASK.md Phase 6 plans for** | Fell out of implementing the Phase 7 regression gate. At a 95% baseline the minimum detectable drop is 7.7 points at n=100, 5.4 at n=200, 2.4 at n=1000 and 2.0 at n=1470. Below that, "no significant regression" is not evidence of no regression, so the gate reports UNDERPOWERED and refuses to pass. Phase 6's target should rise, or the effect we agree to care about should | Open — a planning decision, not a code change |
+| D21 | 8 Oct 2026 | **Isaac Sim becomes the primary simulator again; D15 is reversed. Gazebo Harmonic is retained as the fallback and as the CI simulator** | Decided by the project owner. Recorded against a known conflict: NVIDIA's published minimum for Isaac Sim (an RTX 4080-class GPU with RT cores and 16 GB VRAM, 32 GB RAM, 50 GB SSD; unchanged since the 6 Sep check and present in the 5.1 documentation too) is not met by the machine in hand (RTX 3050 laptop, 4–6 GB VRAM), and hosted CI runners have no GPU. So `drishti_sim_isaac` is written against the Isaac Sim 6.1 API and checked offline, but has never been run and nothing in CI exercises it. The SPEC.md §4 interface contract is unchanged; the Gazebo path stays the only one verified end to end; the first run of the Isaac backend needs a qualifying GPU (CLOUD_SETUP.md §10). Numbers measured in one simulator are not evidence for the other | Yes — the simulator is behind the §4 contract |
 
 ---
 
@@ -282,6 +291,8 @@ Recorded so the constraint is not re-litigated from memory. See **B3**.
 | NVIDIA driver | | |
 | ROS 2 | | |
 | Gazebo Harmonic | | |
+| Isaac Sim | | |
+| Isaac Sim ROS 2 bridge extension (`isaacsim.ros2.bridge`) | | |
 | CUDA | | |
 | CuPy | | |
 | Nav2 | | |

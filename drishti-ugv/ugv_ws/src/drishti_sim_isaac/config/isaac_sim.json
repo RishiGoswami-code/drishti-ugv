@@ -1,0 +1,49 @@
+{
+  "notes": [
+    "UNVERIFIED: never loaded by Isaac Sim; no machine on the project can run it.",
+    "The topics list IS the simulator-to-ROS seam for this backend, the counterpart of drishti_sim/config/bridge.yaml. tools/check_isaac_assets.py requires the two to name the same ROS topics, types and directions.",
+    "Dimensions, masses, sensor poses, resolutions and rates are NOT repeated here: they are read from the robot description (drishti.urdf.xacro) and the worlds from drishti_sim/worlds/*.sdf, so the two simulators cannot drift apart."
+  ],
+  "simulation": {
+    "step_hz": 60,
+    "device": "cpu"
+  },
+  "render": {
+    "renderer": "RealTimePathTracing"
+  },
+  "lighting": {
+    "sun_intensity": 1000.0,
+    "sky_intensity": 300.0
+  },
+  "wheel_drive": {
+    "damping": 1.0,
+    "max_force": 30.0
+  },
+  "frames": {
+    "world": "world",
+    "odom": "odom",
+    "base": "base_link"
+  },
+  "sensors": {
+    "left_camera": "camera_left",
+    "right_camera": "camera_right",
+    "depth_camera": "camera_depth",
+    "imu": "imu"
+  },
+  "topics": [
+    {"source": "clock",        "ros_topic_name": "/clock",                      "ros_type_name": "rosgraph_msgs/msg/Clock",     "direction": "SIM_TO_ROS"},
+    {"source": "left_rgb",     "ros_topic_name": "/camera/rgb/image_raw",       "ros_type_name": "sensor_msgs/msg/Image",       "direction": "SIM_TO_ROS"},
+    {"source": "left_info",    "ros_topic_name": "/camera/camera_info",         "ros_type_name": "sensor_msgs/msg/CameraInfo",  "direction": "SIM_TO_ROS"},
+    {"source": "right_rgb",    "ros_topic_name": "/camera/right/image_raw",     "ros_type_name": "sensor_msgs/msg/Image",       "direction": "SIM_TO_ROS"},
+    {"source": "right_info",   "ros_topic_name": "/camera/right/camera_info",   "ros_type_name": "sensor_msgs/msg/CameraInfo",  "direction": "SIM_TO_ROS"},
+    {"source": "depth_image",  "ros_topic_name": "/camera/depth/image_rect_raw","ros_type_name": "sensor_msgs/msg/Image",       "direction": "SIM_TO_ROS"},
+    {"source": "depth_info",   "ros_topic_name": "/camera/depth/camera_info",   "ros_type_name": "sensor_msgs/msg/CameraInfo",  "direction": "SIM_TO_ROS"},
+    {"source": "depth_points", "ros_topic_name": "/camera/points",              "ros_type_name": "sensor_msgs/msg/PointCloud2", "direction": "SIM_TO_ROS"},
+    {"source": "imu",          "ros_topic_name": "/imu/data",                   "ros_type_name": "sensor_msgs/msg/Imu",         "direction": "SIM_TO_ROS"},
+    {"source": "odometry",     "ros_topic_name": "/odom",                       "ros_type_name": "nav_msgs/msg/Odometry",       "direction": "SIM_TO_ROS"},
+    {"source": "odom_tf",      "ros_topic_name": "/tf",                         "ros_type_name": "tf2_msgs/msg/TFMessage",      "direction": "SIM_TO_ROS"},
+    {"source": "joint_states", "ros_topic_name": "/joint_states",               "ros_type_name": "sensor_msgs/msg/JointState",  "direction": "SIM_TO_ROS"},
+    {"source": "cmd_vel",      "ros_topic_name": "/cmd_vel",                    "ros_type_name": "geometry_msgs/msg/Twist",     "direction": "ROS_TO_SIM"},
+    {"source": "ground_truth", "ros_topic_name": "/ground_truth/pose",          "ros_type_name": "nav_msgs/msg/Odometry",       "direction": "SIM_TO_ROS"}
+  ]
+}

@@ -58,6 +58,7 @@ unexecuted**.
 | `drishti_safety` | `ament_cmake` | supervisor core + ROS node | **core tested**, node uncompiled |
 | `drishti_description` | `ament_cmake` | UGV xacro, stereo + depth + IMU | frame tree checked |
 | `drishti_sim` | `ament_cmake` | Gazebo worlds, `ros_gz` bridge | XML/YAML checked |
+| `drishti_sim_isaac` | `ament_cmake` | Isaac Sim backend: URDF/SDF to USD, ROS 2 graph | offline consistency checks only; never run in Isaac Sim |
 | `drishti_eval` | `ament_python` | ATE, RPE, drift, run report | **64 checks, tested** |
 | `drishti_traversability` | `ament_cmake` | SPEC §6.1 cost, Nav2 layer | **1217 checks, tested** |
 | `drishti_perception` | `ament_python` | taxonomy, health, obstacle distance | **198 checks, tested** |
